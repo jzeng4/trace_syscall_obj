@@ -2340,7 +2340,7 @@ void helper_lret_protected(CPUX86State *env, int shift, int addend)
 
 void helper_sysenter(CPUX86State *env)
 {
-//jzeng
+	//jzeng
 #if 0	
 	if(pemu_exec_stats.PEMU_main_start	
 			&& pemu_exec_stats.PEMU_cr3 == PEMU_get_cr3()) {

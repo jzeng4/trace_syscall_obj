@@ -71,6 +71,7 @@ static map<size_t, string > read_hash_callstack;
 static map<size_t, string > write_hash_callstack;
 static map<size_t, string > delete_hash_callstack;
 
+static map<unsigned int, int> syscall_call_funcs;
 
 static map<unsigned int, struct info> g_all_info;
 static list<unsigned int> *p_cur_retstack;
@@ -544,6 +545,17 @@ int cur_delete_callstack(unsigned int pc)
 		return 1;	//callstack empty;	
 	}
 	return 0;
+}
+
+
+unsigned int get_parent_callstack(void)
+{
+	if((*p_cur_callstack).size() >= 2) {
+		list<unsigned int>::reverse_iterator rit = (*p_cur_callstack).rbegin();
+		return *(++rit);
+	} else {
+		return 0xffffffff;
+	}
 }
 
 unsigned int get_cur_callstack(void)
@@ -1039,5 +1051,41 @@ void set_dump(void)
 	//dump_names("names.s", names);
 }
 
+
+void set_syscall_call_funcs(unsigned int pc)
+{
+	syscall_call_funcs[pc]++;
+}
+
+void print_syscall_call_funcs(void)
+{
+	for(map<unsigned int,int>::iterator it = syscall_call_funcs.begin()
+			;it != syscall_call_funcs.end();it++) {
+		fprintf(stdout, "%x %x\n", it->first, it->second);
+	}
+}
+
+map<unsigned int, unordered_set<unsigned int> > call_relation;
+
+void set_call_relation(unsigned int caller, unsigned int callee)
+{
+	//printf("%x:%x\n", get_parent_callstack(), callee);
+	call_relation[caller].insert(callee);
+}
+
+void print_call_relation(void)
+{
+	FILE *file = fopen("call_relation", "w");
+	if(!file) {
+		fprintf(stderr, "error in open %s\n", "call_relation");
+		exit(0);
+	}
+	for(map<unsigned int, unordered_set<unsigned int> >::iterator it = call_relation.begin(); it != call_relation.end(); it++) {
+		for(auto it3 = (*it).second.begin(); it3 != (*it).second.end(); it3++) {
+				fprintf(file, "%x:%x\n", (*it).first, (*it3));
+		}
+	}
+
+}
 
 }

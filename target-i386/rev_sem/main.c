@@ -63,7 +63,8 @@ void object_hook(int pc_start)
 
 	if(get_obj(pc_start)) {
 		get_name(pc_start, name);
-		uint32_t obj_addr = get_obj_addr(pc_start) != 0 ? get_obj_addr(pc_start) : PEMU_get_reg(XED_REG_EAX);
+		//uint32_t obj_addr = get_obj_addr(pc_start) != 0 ? get_obj_addr(pc_start) : PEMU_get_reg(XED_REG_EAX);
+		uint32_t obj_addr = PEMU_get_reg(XED_REG_EAX);
 		add_obj(obj_addr, get_size(pc_start), name, pc_start);
 	}
 	
@@ -93,6 +94,16 @@ void object_hook(int pc_start)
 		uint32_t addr2 = PEMU_get_reg(XED_REG_ESI);
 		ds_code_all_delete_rb(addr1);
 		ds_code_all_delete_rb(addr2);
+	}
+}
+
+
+void trace_functions(int pc_start)
+{
+	unsigned int target;
+	if((target = disas_get_target(pc_start, &pemu_inst))) {
+		//set_syscall_call_funcs(target);
+		set_call_relation(get_parent_callstack(), target);
 	}
 }
 
@@ -169,6 +180,7 @@ void helper_load(target_ulong addr, int size)
 
 void trace_kmem_create(int pc_start)
 {
+#if 0 //for linux
 	static uint32_t size = 0;	
 	if(get_kmem_obj(pc_start)){
 		char name[100];
@@ -185,6 +197,28 @@ void trace_kmem_create(int pc_start)
 		size = PEMU_get_reg(XED_REG_EDX);
 		PEMU_read_mem(PEMU_get_reg(XED_REG_EAX), 100, name);
 		PEMU_read_mem(PEMU_get_reg(XED_REG_ESP), 4, &ret_addr);
+		insert_kmem_obj(ret_addr, name);
+	}
+#endif
+	//freebsd
+	static uint32_t size = 0;	
+	if(get_kmem_obj(pc_start)){
+		char name[100];
+		get_kmem_name(pc_start, name);
+		fprintf(stderr, "%x %s %d\n", 
+				PEMU_get_reg(XED_REG_EAX), name, size);
+		delete_kmem(pc_start);
+	}
+
+	//if(pc_start == KMEM_CACHE_CREATE){
+	if(pc_start == 0xc0d22a60) {
+		uint32_t ret_addr;
+		uint32_t ptr;
+		char name[100];
+		PEMU_read_mem(PEMU_get_reg(XED_REG_ESP), 4, &ret_addr);
+		PEMU_read_mem(PEMU_get_reg(XED_REG_ESP) + 4, 4, &ptr);
+		PEMU_read_mem(PEMU_get_reg(XED_REG_ESP) + 8, 4, &size);
+		PEMU_read_mem(ptr, 20, name);
 		insert_kmem_obj(ret_addr, name);
 	}
 }
@@ -316,7 +350,6 @@ void helper_hook(int pc_start)
 	return;
 #endif
 
-
 #ifdef TRACE_SYSCALL_OBJ
 
 	enable_trace = 0;
@@ -352,13 +385,19 @@ void helper_hook(int pc_start)
 #ifdef CALLSTACK
 			callstack_hook(pc_start);
 #endif
+
 #if 0
 #ifdef MYCPUID
-		if(start_cpuid == 0) {
+			if(start_cpuid == 0) {
+				return;
+			}
+			if(get_kernel_esp() == pemu_exec_stats.PEMU_kern_esp)
+				trace_functions(pc_start);
 			return;
-		}
+
 #endif
 #endif
+
 			object_hook(pc_start);
 
 #ifdef INFER_SIZE

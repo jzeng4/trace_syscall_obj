@@ -8,6 +8,8 @@
 #define LINUX_2_6_32_8_NO_TRACE
 //#define LINUX_3_2_58
 //#define LINUX_3_2_58_NO_TRACE
+//#define FREEBSD_9_1
+
 
 #ifdef LINUX_2_6_32_8
 #define KMEM_CACHE_CREATE 0xc10aa5c8 /*address of kmem_cache_create*/
@@ -76,11 +78,29 @@
 #endif
 
 
-#define TRACECALLSTACK
+#ifdef FREEBSD_9_1
+#define KMEM_CACHE_CREATE 0xc0d22a60 /*address of kmem_cache_create*/
+#define KMEM_CACHE_ALLOC 0xc0d24630 /*address of kmem_cache_alloc*/
+#define KMEM_CACHE_FREE	0xc0d24270  /*address of kmem_cache_free*/
+#define SCHED_ADDR 0xc0ac8b50   /*?address of schedule function*/
+#define STACK_SIZE	0x2000 	/*kernel stack size*/
+#define ESP_SWITCH_PONIT	0xc0e23458	/*esp switching point*/
+#define KERNEL_ADDR_MIN		0xc0000000	/*min address of kernel space*/
+#define KFREE	0x0	/*kfree*/
+#define KERNEL_ESP	0x0 	/*the address of esp field of TSS*/
+#define ____CACHE_ALLOC_START 0x0 /*start address for ____cache_alloc*/
+#define ____CACHE_ALLOC_END 0x0 /*start address for ____cache_alloc*/
+#define TRACE_KMALLOC 0x0 /*start address for trace_kmalloc*/
+#define __KMALLOC 0x0 /*start address for __kmalloc*/
+#define __KMALLOC_TRACK_CALLER 0x0 /*start address for __kmalloc_track_caller*/
+#define KMEM_CACHE_ALLOC_TRACE 0x0
+#endif
 
-#define NOSCHEDULE
-#define MYCPUID
-#define CALLSTACK
+
 #define TRACE_SYSCALL_OBJ
-#define INFER_SIZE
+#define TRACECALLSTACK
+#define NOSCHEDULE
+//#define MYCPUID
+#define CALLSTACK
+//#define INFER_SIZE
 #endif

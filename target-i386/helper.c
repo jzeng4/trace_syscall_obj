@@ -448,6 +448,7 @@ void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0)
 #include "rev_sem/config_pemu.h"
 void cpu_x86_update_cr3(CPUX86State *env, target_ulong new_cr3)
 {
+#if 0
 #ifndef MYCPUID
 	if(pemu_exec_stats.PEMU_start && pemu_exec_stats.PEMU_cr3 == 0) {
 		if(PEMU_find_process(env)) {
@@ -467,7 +468,7 @@ void cpu_x86_update_cr3(CPUX86State *env, target_ulong new_cr3)
 #endif
 
 #endif
-//end
+#endif
 
     env->cr[3] = new_cr3;
     if (env->cr[0] & CR0_PG_MASK) {

@@ -320,43 +320,16 @@ int PEMU_find_module(void *opaque)
 
 
 
-
-extern FILE *output_file;
-FILE *PEMU_open(int , int);
-int start_cpuid = 0;
-void init_syscall_trace(uint32_t num, int index)
-{
-#if 0
-	pemu_exec_stats.PEMU_start = 1;
-	pemu_exec_stats.PEMU_cr3 = PEMU_get_cr3();
-	pemu_exec_stats.PEMU_main_start = 1;
-	pemu_exec_stats.PEMU_syscall_num = num;
-	pemu_exec_stats.PEMU_in_schedule = 0;
-	output_file = PEMU_open(num, index);
-	fprintf(stderr, "PEMU_start:%x cr3:%x main_start:%x syscall_num:%d\n", 
-			pemu_exec_stats.PEMU_start, pemu_exec_stats.PEMU_cr3, pemu_exec_stats.PEMU_main_start, pemu_exec_stats.PEMU_syscall_num);
-#endif
-	start_cpuid = 1;
-}
-
-void uninit_syscall_trace(void)
-{
-#if 0
-	pemu_exec_stats.PEMU_main_start = 0;
-	pemu_exec_stats.PEMU_start_trace_syscall = 0;
-	pemu_exec_stats.PEMU_cr3 = 0;
-	PEMU_close(output_file);
-#endif
-	start_cpuid = 0;
-//	clear_calldata();
-}
-
-
 uint32_t get_kernel_esp(void)
 {
 	uint32_t esp;
+#ifdef FREEBSD_9_1
+	uint32_t ss;
+	struct CPUX86State* env=(struct CPUX86State*)(first_cpu->env_ptr);
+	PEMU_read_mem(env->tr.base+4, 4, &esp);
+#else
 	PEMU_read_mem(KERNEL_ESP, 4, &esp);
-	//struct CPUX86State* env=(struct CPUX86State*)(first_cpu->env_ptr);
+#endif
 	return esp;
 }
 
@@ -372,11 +345,15 @@ void get_kmem_cache_alloc_args(uint32_t *objsize, char *name)
 {
 	uint32_t tmp, tmp1;
 
-#ifdef FREEBSD
+#ifdef FREEBSD_9_1
 	PEMU_read_mem(PEMU_get_reg(XED_REG_ESP) + 4, 4, &tmp);
-	PEMU_read_mem(tmp, 4, &tmp);
-	PEMU_read_mem(tmp, 50, name);
-	*objsize = find_heap_size(name) + 1;
+	PEMU_read_mem(tmp, 4, &tmp1);
+	PEMU_read_mem(tmp1, 50, name);
+	PEMU_read_mem(tmp+4*16, 4, &tmp1);
+	*objsize = tmp1;
+	
+	//cur_dump_callstack(stdout, 0);
+	//printf("name: %s\n", name);
 #endif
 
 #ifdef LINUX_2_6_32_8
@@ -414,25 +391,18 @@ void get_kmem_cache_alloc_args(uint32_t *objsize, char *name)
 void get_kmem_cache_free_args(uint32_t *addr)
 {
 	uint32_t tmp;
-#ifdef FREEBSD
-	PEMU_read_mem(PEMU_get_reg(XED_REG_ESP) + 8, 4, &addr);
-	PEMU_read_mem(PEMU_get_reg(XED_REG_ESP) + 4, 4, &tmp);
-	PEMU_read_mem(tmp, 4, &tmp);
-	PEMU_read_mem(tmp, 50, name);
-#endif
-
-//#ifdef LINUX_3_2_58 || LINUX_3_2_58_NO_TRACE
+#ifdef FREEBSD_9_1
+	PEMU_read_mem(PEMU_get_reg(XED_REG_ESP) + 8, 4, addr);
+#else
 	*addr = PEMU_get_reg(XED_REG_EDX);
-//#endif
-
-	//printf("kfree:%x\n", *addr);
+#endif
 }
 
 
 void get_trace_kmalloc_args(uint32_t *addr, uint32_t *size)
 {
 	uint32_t tmp;
-#ifdef FREEBSD
+#ifdef FREEBSD_9_1
 	assert(0);
 #endif
 
@@ -465,3 +435,35 @@ void get_kcreate_args(uint32_t *objsize, char *name)
 	
 }
 
+
+extern FILE *output_file;
+FILE *PEMU_open(int , int);
+int start_cpuid = 0;
+void init_syscall_trace(uint32_t num, int index)
+{
+#if 0
+	pemu_exec_stats.PEMU_start = 1;
+	pemu_exec_stats.PEMU_cr3 = PEMU_get_cr3();
+	pemu_exec_stats.PEMU_main_start = 1;
+	pemu_exec_stats.PEMU_syscall_num = num;
+	pemu_exec_stats.PEMU_in_schedule = 0;
+	output_file = PEMU_open(num, index);
+	fprintf(stderr, "PEMU_start:%x cr3:%x main_start:%x syscall_num:%d\n", 
+			pemu_exec_stats.PEMU_start, pemu_exec_stats.PEMU_cr3, pemu_exec_stats.PEMU_main_start, pemu_exec_stats.PEMU_syscall_num);
+#endif
+	pemu_exec_stats.PEMU_kern_esp = get_kernel_esp();
+	start_cpuid = 1;
+}
+
+void uninit_syscall_trace(void)
+{
+#if 0
+	pemu_exec_stats.PEMU_main_start = 0;
+	pemu_exec_stats.PEMU_start_trace_syscall = 0;
+	pemu_exec_stats.PEMU_cr3 = 0;
+	PEMU_close(output_file);
+#endif
+	start_cpuid = 0;
+	print_call_relation();
+//	clear_calldata();
+}
