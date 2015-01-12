@@ -586,12 +586,15 @@ static inline void gen_op_addq_A0_reg_sN(int shift, int reg)
 
 
 //jzeng
+#include "rev_sem/config_pemu.h"
 static uint32_t g_disas_pc;
 static inline void gen_op_lds_T0_A0(int idx)
 {
+#ifdef RECORD_MEM_ACCESS
 	if(g_disas_pc >= 0xc0000000) {
 		gen_helper_load(cpu_A0, tcg_const_i32(idx & 3 + 1));
 	}
+#endif
 //end
     int mem_index = (idx >> 2) - 1;
     switch(idx & 3) {
@@ -611,9 +614,11 @@ static inline void gen_op_lds_T0_A0(int idx)
 static inline void gen_op_ld_v(int idx, TCGv t0, TCGv a0)
 {
 //jzeng
+#ifdef RECORD_MEM_ACCESS
 	if(g_disas_pc >= 0xc0000000) {
 		gen_helper_load(a0, tcg_const_i32(idx & 3 + 1));
 	}
+#endif
 //end
     int mem_index = (idx >> 2) - 1;
     switch(idx & 3) {
@@ -655,9 +660,11 @@ static inline void gen_op_ld_T1_A0(int idx)
 static inline void gen_op_st_v(int idx, TCGv t0, TCGv a0)
 {
 //jzeng
+#ifdef RECORD_MEM_ACCESS
 	if(g_disas_pc >= 0xc0000000) {
 		gen_helper_store(t0, a0, tcg_const_i32(idx & 3 + 1));
 	}
+#endif
 //end
 
     int mem_index = (idx >> 2) - 1;
@@ -5248,7 +5255,12 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             break;
         case 2: /* call Ev */
             /* XXX: optimize if memory (no 'and' is necessary) */
-            if (s->dflag == 0)
+#ifdef SEM_TYPES
+			//jzeng
+			gen_helper_call_handler(tcg_const_i32(g_disas_pc));
+			//end
+#endif
+			if (s->dflag == 0)
                 gen_op_andl_T0_ffff();
             next_eip = s->pc - s->cs_base;
             gen_movtl_T1_im(next_eip);
@@ -6851,6 +6863,11 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 tval = (int16_t)insn_get(env, s, OT_WORD);
             next_eip = s->pc - s->cs_base;
             tval += next_eip;
+#ifdef SEM_TYPES
+			//jzeng
+			gen_helper_call_handler(tcg_const_i32(g_disas_pc));
+			//end
+#endif
             if (s->dflag == 0)
                 tval &= 0xffff;
             else if(!CODE64(s))

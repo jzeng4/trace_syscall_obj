@@ -2325,6 +2325,9 @@ void helper_iret_protected(CPUX86State *env, int shift, int next_eip)
 	if(syscall_iret(get_kernel_esp() & 0xffffe000)) {
 		if(pemu_exec_stats.PEMU_iret_target_pc < 0xc0000000) {
 			//syscall_exit(get_kernel_esp() & 0xffffe000, 1);
+			//TODO:
+			check_if_success();
+			//end
 		} else {
 			decr_intr();
 		}

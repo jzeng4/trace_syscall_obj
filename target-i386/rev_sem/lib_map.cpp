@@ -1,5 +1,5 @@
 #include "config_pemu.h"
-#include <list>
+#include <vector>
 #include <stack>
 #include <stdio.h>
 #include <stdlib.h> 
@@ -12,12 +12,15 @@
 #include <sstream>
 #include <set>
 #include <unordered_set>
+#include <unordered_map>
 #include <assert.h>
-#include "heap_shadow.h"
 #include "algorithm"
+#include <sys/time.h>
+
 
 extern "C" {
 #include "taint.h"
+#include "heap_shadow.h"
 
 struct PEMU_INST {
 	unsigned int PEMU_inst_pc;
@@ -52,9 +55,9 @@ struct Elem1 {
 	unsigned int addr;
 };
 
-//static list<unsigned int> g_callsite;
-//static list<unsigned int> g_callstack;
-static list<unsigned int> g_ret_stack;
+//static vector<unsigned int> g_callsite;
+//static vector<unsigned int> g_callstack;
+static vector<unsigned int> g_ret_stack;
 static map<unsigned int, struct Elem1> g_obj;
 static map<unsigned int, struct Elem1> g_obj1;
 static map<unsigned int, int> g_all_obj;
@@ -64,8 +67,8 @@ static map<string, unsigned int> g_heap_types_s;
 static map<unsigned int, unsigned int> g_come_from;
 static map<unsigned int, string> g_syscall;
 static map<unsigned int, int> g_proc_intr;
-static map<unsigned, list<unsigned int> > g_all_callstacks;
-static map<unsigned, list<unsigned int> > g_all_retstacks;
+static map<unsigned, vector<unsigned int> > g_all_callstacks;
+static map<unsigned, vector<unsigned int> > g_all_retstacks;
 static map<unsigned int, string> g_trace_kmem;
 static map<size_t, string > read_hash_callstack;
 static map<size_t, string > write_hash_callstack;
@@ -74,14 +77,15 @@ static map<size_t, string > delete_hash_callstack;
 static map<unsigned int, int> syscall_call_funcs;
 
 static map<unsigned int, struct info> g_all_info;
-static list<unsigned int> *p_cur_retstack;
-static list<unsigned int> *p_cur_callstack;
+static vector<unsigned int> *p_cur_retstack;
+static vector<unsigned int> *p_cur_callstack;
 int s_int_level = -1;
 int s_in_sched = -1;
 int s_in_syscall = -1;
 int s_trace = -1;
 int s_esp = 0;
 int s_sysnum = -1;
+int s_proc_addr = 0;
 
 #define in_syscall_context()	\
 	s_in_syscall == 1
@@ -100,7 +104,7 @@ size_t hash_callstack(uint32_t pc)
 	string str;
 	stringstream ss;
 
-	for(list<unsigned int>:: iterator it = (*p_cur_retstack).begin(); 
+	for(vector<unsigned int>:: iterator it = (*p_cur_retstack).begin(); 
 			it != (*p_cur_retstack).end(); it++) {
 		ss << *it;
 	}
@@ -119,7 +123,7 @@ size_t hash_read_callstack(uint32_t pc)
 	stringstream ss;
 	size_t hash;
 
-	for(list<unsigned int>:: iterator it = (*p_cur_retstack).begin(); 
+	for(vector<unsigned int>:: iterator it = (*p_cur_retstack).begin(); 
 			it != (*p_cur_retstack).end(); it++) {
 		ss << hex <<*it;
 		ss << "->";
@@ -138,7 +142,7 @@ size_t hash_write_callstack(uint32_t pc)
 	stringstream ss;
 	size_t hash;
 
-	for(list<unsigned int>:: iterator it = (*p_cur_retstack).begin(); 
+	for(vector<unsigned int>:: iterator it = (*p_cur_retstack).begin(); 
 			it != (*p_cur_retstack).end(); it++) {
 		ss << hex <<*it;
 		ss << "->";
@@ -157,7 +161,7 @@ size_t hash_delete_callstack(uint32_t pc)
 	stringstream ss;
 	size_t hash;
 
-	for(list<unsigned int>:: iterator it = (*p_cur_retstack).begin(); 
+	for(vector<unsigned int>:: iterator it = (*p_cur_retstack).begin(); 
 			it != (*p_cur_retstack).end(); it++) {
 		ss << hex <<*it;
 		ss << "->";
@@ -171,7 +175,7 @@ size_t hash_delete_callstack(uint32_t pc)
 
 uint32_t is_dup_call_kmem_cache_alloc(void)
 {
-	for (list<unsigned int>::reverse_iterator rit = (*p_cur_callstack).rbegin();
+	for (vector<unsigned int>::reverse_iterator rit = (*p_cur_callstack).rbegin();
 			rit != (*p_cur_callstack).rend(); ++rit) {
 		if((*rit == KMEM_CACHE_ALLOC || *rit == __KMALLOC || *rit == __KMALLOC_TRACK_CALLER)
 				&& rit != (*p_cur_callstack).rbegin()) {
@@ -332,7 +336,7 @@ void dump_rets1(FILE *file, unsigned int pc)
 {
 //#ifdef DEBUG
 	fprintf(file, "rets:");
-	for(std::list<unsigned int>::iterator it = (*p_cur_retstack).begin(); 
+	for(std::vector<unsigned int>::iterator it = (*p_cur_retstack).begin(); 
 			it != (*p_cur_retstack).end(); ++it){
 		fprintf(file, "%x->", *it);
 	}
@@ -481,8 +485,10 @@ struct info {
 	int trace;		//trace?
 	uint32_t esp;	//kernel stack address
 	int sysnum;		//syscall number
-	list<unsigned int> *p_retstack;	//retstack
-	list<unsigned int> *p_callstack;	//callstack
+	vector<unsigned int> *p_retstack;	//retstack
+	vector<unsigned int> *p_callstack;	//callstack
+
+	uint32_t proc_addr;//for task_struct;
 };
 
 extern uint32_t g_pc;
@@ -493,7 +499,7 @@ void cur_dump_rets(FILE *file, unsigned int pc)
 {
 //#ifdef DEBUG
 	fprintf(file, "%p rets:", p_cur_retstack);
-	for(std::list<unsigned int>::iterator it = (*p_cur_retstack).begin(); 
+	for(std::vector<unsigned int>::iterator it = (*p_cur_retstack).begin(); 
 			it != (*p_cur_retstack).end(); ++it){
 		fprintf(file, "%x->", *it);
 	}
@@ -518,20 +524,35 @@ int cur_delete_retaddr(unsigned int pc)
 void cur_dump_callstack(FILE *file, unsigned int pc)
 {
 	fprintf(file, "%p rets:", p_cur_retstack);
-	for(std::list<unsigned int>::iterator it = (*p_cur_retstack).begin(); 
+	for(std::vector<unsigned int>::iterator it = (*p_cur_retstack).begin(); 
 			it != (*p_cur_retstack).end(); ++it){
 		fprintf(file, "%x->", *it);
 	}
 	fprintf(file, "%x\n", pc);
 #if 0	
 	fprintf(file, "%p rets:", p_cur_callstack);
-	for(std::list<unsigned int>::iterator it = (*p_cur_callstack).begin(); 
+	for(std::vector<unsigned int>::iterator it = (*p_cur_callstack).begin(); 
 			it != (*p_cur_callstack).end(); ++it){
 		fprintf(file, "%x->", *it);
 	}
 	fprintf(file, "%x\n", pc);
 #endif
 }
+
+
+string get_cur_callstack_str(unsigned int pc)
+{
+	stringstream ss;
+	string r = "rets:";
+	for(std::vector<unsigned int>::iterator it = (*p_cur_retstack).begin(); 
+			it != (*p_cur_retstack).end(); ++it){
+		ss<<hex<<*it<<"->";
+	}
+	ss<<hex<<pc;
+	r += ss.str();
+	return r;
+}
+
 
 void cur_insert_callstack(unsigned int pc)
 {
@@ -547,11 +568,16 @@ int cur_delete_callstack(unsigned int pc)
 	return 0;
 }
 
+unsigned int cur_get_ret(void)
+{
+	return (*p_cur_retstack)[(*p_cur_retstack).size()-1];
+}
+
 
 unsigned int get_parent_callstack(void)
 {
 	if((*p_cur_callstack).size() >= 2) {
-		list<unsigned int>::reverse_iterator rit = (*p_cur_callstack).rbegin();
+		vector<unsigned int>::reverse_iterator rit = (*p_cur_callstack).rbegin();
 		return *(++rit);
 	} else {
 		return 0xffffffff;
@@ -607,6 +633,7 @@ void new_proc_start(uint32_t pc_start)
 		g_all_info[old_esp].esp = s_esp;
 		g_all_info[old_esp].p_retstack = p_cur_retstack;
 		g_all_info[old_esp].p_callstack = p_cur_callstack;
+		g_all_info[old_esp].proc_addr = s_proc_addr;
 	} else {
 	}
 
@@ -620,6 +647,7 @@ void new_proc_start(uint32_t pc_start)
 		s_sysnum = g_all_info[new_esp].sysnum;
 		p_cur_retstack = g_all_info[new_esp].p_retstack;
 		p_cur_callstack = g_all_info[new_esp].p_callstack;
+		s_proc_addr = g_all_info[new_esp].proc_addr;
 #ifdef DEBUG
 		fprintf(stderr, "new:%x int:%d sched:%x in_syscall:%x esp:%x\n",
 				new_esp, s_int_level, s_in_sched, s_in_syscall, s_esp);
@@ -633,6 +661,7 @@ void new_proc_start(uint32_t pc_start)
 		s_sysnum = -1;
 		p_cur_retstack = NULL;
 		p_cur_callstack = NULL;
+		s_proc_addr = 0;
 #ifdef DEBUG
 		fprintf(stderr, "esp not found in new_proc_start: %x\n", new_esp);
 #endif
@@ -693,10 +722,11 @@ void syscall_enter(uint32_t esp, int label)
 	info.in_syscall = 1;
 	info.trace = 0;
 	info.esp = esp;
+	info.proc_addr = 0;
 	info.sysnum = PEMU_get_reg(XED_REG_EAX);
 	g_all_info[esp] = info;
-	g_all_retstacks[esp] = list<unsigned int>(0, 0);
-	g_all_callstacks[esp] = list<unsigned int>(0,0);
+	g_all_retstacks[esp] = vector<unsigned int>(0, 0);
+	g_all_callstacks[esp] = vector<unsigned int>(0,0);
 
 //	if(PEMU_get_reg(XED_REG_EAX) == 0xa2) {
 //		info.trace = 1;
@@ -710,8 +740,11 @@ void syscall_enter(uint32_t esp, int label)
 	s_esp = esp;
 	p_cur_retstack = &g_all_retstacks[esp];
 	p_cur_callstack = &g_all_callstacks[esp];
+	s_proc_addr = 0;
 	(*p_cur_retstack).clear();
 	(*p_cur_callstack).clear();
+
+	//fprintf(stderr, "new esp:%x\n", );
 }
 
 /*leave syscall*/
@@ -729,7 +762,7 @@ void syscall_exit(uint32_t esp, int label)
 	if(p_cur_retstack != NULL) {
 		if((*p_cur_retstack).size() != 0 
 				&& (*p_cur_retstack).back() != 0xc1031232) {
-			for(std::list<unsigned int>::iterator it = (*p_cur_retstack).begin(); 
+			for(std::vector<unsigned int>::iterator it = (*p_cur_retstack).begin(); 
 					it != (*p_cur_retstack).end(); ++it) {
 				fprintf(stderr, "%x->", *it);
 			}
@@ -755,7 +788,7 @@ OUT:
 	s_in_syscall = 0;
 	s_sysnum = -1;
 	s_esp = 0;
-
+	s_proc_addr = 0;
 }
 
 
@@ -792,7 +825,9 @@ struct DataIntem
 {
 	unsigned int pc;
 	int size;
-	char name[30];
+	char name[50];
+	void *callstack;
+	void *types;
 };
 
 map<int, unordered_set<size_t> > sys_read;
@@ -863,6 +898,9 @@ void set_createSys(int sysnum, size_t obj, struct DataIntem data)
 		cur_dump_callstack(output_database, g_pc);
 		fprintf(output_database, "%lx %x %s %d\n", 
 				obj, data.pc, data.name, data.size);
+		
+		data.types = new map<unsigned int, unordered_set<string> >();
+		data.callstack = new string(get_cur_callstack_str(g_pc));
 		database[obj] = data;
 	}
 }
@@ -996,6 +1034,48 @@ void open_database(void)
 	}
 }
 
+
+void dump_rewards_types(char *fname)
+{
+	FILE *file = fopen(fname, "w");
+	if(!file) {
+		fprintf(stderr, "error in open %s\n", fname);
+		exit(0);
+	}
+	for(map<size_t, struct DataIntem >::iterator it = database.begin(); it != database.end();
+			it++) {
+		struct DataIntem data = (*it).second;
+		map<unsigned int, unordered_set<string> > *mp = (map<unsigned int, unordered_set<string> >*) data.types;
+		
+		fprintf(file, "%lx\t%s", (*it).first, data.name);
+		for(map<unsigned int, unordered_set<string> >::iterator it2 = (*mp).begin();
+				it2 != (*mp).end(); it2++) {
+			for(auto it3 = (*it2).second.begin(); it3 != (*it2).second.end(); it3++) {
+				fprintf(file, "\t%x:%s", (*it2).first, (*it3).c_str());
+			}
+		}
+		fprintf(file, "\n");
+	}
+	fclose(file);
+}
+
+void dump_objs_types(char *fname)
+{
+	FILE *file = fopen(fname, "w");
+	if(!file) {
+		fprintf(stderr, "error in open %s\n", fname);
+		exit(0);
+	}
+	for(map<size_t, struct DataIntem >::iterator it = database.begin(); it != database.end();
+			it++) {
+		struct DataIntem data = (*it).second;
+		fprintf(file, "%s\n", ((string*)data.callstack)->c_str());
+		fprintf(file, "%lx %s", (*it).first, data.name);
+		fprintf(file, "\n");
+	}
+	fclose(file);
+}
+
 #if 0
 FILE *modules;
 void load_modules(void)
@@ -1034,6 +1114,7 @@ void dump_names(char *fname, map<string,int> &names)
 
 void set_dump(void)
 {
+#if 0
 	set_dump_one("sys_read", sys_read);
 	set_dump_one("sys_write", sys_write);
 	set_dump_one("sys_create", sys_create);
@@ -1049,23 +1130,17 @@ void set_dump(void)
 	dump_hash_callstack("delete_hash_callstack", delete_hash_callstack);
 	dump_database();
 	//dump_names("names.s", names);
+#endif
+	dump_rewards_types("rewards_types");
+	dump_objs_types("all_objs_type");
 }
 
-
+//begin (for code diff)
+map<unsigned int, unordered_set<unsigned int> > call_relation;
 void set_syscall_call_funcs(unsigned int pc)
 {
 	syscall_call_funcs[pc]++;
 }
-
-void print_syscall_call_funcs(void)
-{
-	for(map<unsigned int,int>::iterator it = syscall_call_funcs.begin()
-			;it != syscall_call_funcs.end();it++) {
-		fprintf(stdout, "%x %x\n", it->first, it->second);
-	}
-}
-
-map<unsigned int, unordered_set<unsigned int> > call_relation;
 
 void set_call_relation(unsigned int caller, unsigned int callee)
 {
@@ -1087,5 +1162,294 @@ void print_call_relation(void)
 	}
 
 }
+//end (for code diff)
+
+//begin (for handle type sinks)
+struct Args {
+	int size;
+	string type;
+	Args(int size, string type) {
+		this->size = size;
+		this->type = type;
+	}
+};
+struct Func {
+	int num;
+	string name;
+	vector<Args> args;
+};
+map<unsigned int, struct Func*> g_func_interface;
+unordered_set<string> type_64;
+void load_function_interface(void)
+{
+	char line[500], fname[50], tmp[50];
+	char *pline;
+	int addr;
+	
+	FILE* file = fopen(TYPE_64, "r");
+	if(!file) {
+		perror(TYPE_64);
+	}
+
+	while (fgets(line, 500, file)) {
+		pline = strtok(line, "\n");//strip newline
+		type_64.insert(pline);
+	}
+	
+	file = fopen(FUNCTION_INTERFACE, "r");
+	if(!file) {
+		perror(FUNCTION_INTERFACE);
+	}
+	
+	while (fgets(line, 500, file)) {
+		pline = strtok(line, "\n");//strip newline
+		char *token = strtok(pline, "\t");
+		sscanf(token, "%x", &addr);
+
+		token = strtok(NULL, "\t");
+		strcpy(fname, token);
+
+		Func *func = new Func();
+		func->name = fname;
+		int num = 0;
+		while ((token = strtok(NULL, "\t")) != NULL) {
+			int start = 0;
+			while(token[start] == ' ') {
+				start++;
+			}
+			if(type_64.count(token+start)) {
+				func->args.push_back(Args(2, token+start));
+			} else {
+				func->args.push_back(Args(1, token+start));
+			}
+			num++;
+		}
+		func->num = num;
+		g_func_interface[addr] = func;
+	}
+	fclose(file);
+#if 0
+	int max_t = 0;
+	string name;
+	for(map<unsigned int, struct Func*>::iterator it = g_func_interface.begin();
+			it != g_func_interface.end(); it++) {
+		cout<<hex<<it->first<<" "<<it->second->num<<" "<<it->second->name<<endl;
+		for(int i = 0;i < it->second->args.size();i++) {
+			cout<<" "<<it->second->args[i].size<<" "<<it->second->args[i].type;
+		}
+		if(max_t < it->second->num) {
+			max_t = it->second->num;
+			name = it->second->name;
+		}
+		cout<<endl;
+	}
+	cout<<max_t<<" "<<name<<endl;
+#endif
+}
+
+int get_parameter(unsigned int *paras, struct Func* func)
+{
+	unsigned int val;
+	int index = -1, n = func->args.size();
+	paras[++index] = PEMU_get_reg(XED_REG_EAX);
+	paras[++index] = PEMU_get_reg(XED_REG_EDX);
+	if(n > 2) {
+		paras[++index] = PEMU_get_reg(XED_REG_ECX);
+	}
+	for(int i = 0;i < 2*n;i++) {
+		if(PEMU_read_mem(PEMU_get_reg(XED_REG_ESP)+4*i, 4, &val) != 0) {
+			assert(0);
+		}
+		paras[++index] = val;
+	}
+}
+
+//#define DEBUG
+int recover_sem_types(unsigned int target_pc)
+{
+	if(!g_func_interface.count(target_pc)) {
+		return -1;
+	}
+	struct Func* func = g_func_interface[target_pc];
+	int index = 0;
+	unsigned int paras[50];
+	NodeType *p;
+
+#if 0	
+	fprintf(stdout, "%s", func->name.c_str());
+	for(int i = 0;i < func->args.size();i++) {
+		fprintf(stdout, " %s", func->args[i].type.c_str());
+	}
+	fprintf(stdout, "\n");
+	fflush(stdout);
+#endif
+	get_parameter(paras, func);
+	for(int i = 0;i < func->args.size();i++) {
+		//cout<<func->args[i].type<<" "<<hex<<paras[index]<<" "<<endl;
+		if(p = ds_code_rbtFind2(paras[index])) {
+			if(database.count(p->type)) {
+				map<unsigned int, unordered_set<string> > *mp = (map<unsigned int, unordered_set<string> >*) database[p->type].types;
+				//if(paras[index] == p->key) {
+#ifdef DEBUG
+			cout<<func->name<<endl;
+			cout<<hex<<p->type<<" "<<func->args[i].type<<" "<<hex<<paras[index]<<" "<<hex<<p->key<<" "<<paras[index]-p->key<<endl;
+			cout<<"ARG:"<<i<<" "<<"INDEX:"<<index<<endl;
+			cout<<flush;
+#endif
+					(*mp)[paras[index]-p->key].insert(func->args[i].type);
+				//}
+			}
+		}
+		index += func->args[i].size;
+	}
+	//cout<<endl;
+	return 0;
+}
+
+
+//action: 0-create, 1-read, 2-write, 3-delete;
+#include <time.h>
+uint64_t PEMU_read_timer(void);
+void instance_action_print(unsigned int instance, unsigned int off, unsigned int func, int action)
+{
+	struct timeval t;
+	static FILE *file;
+	if(!file) {
+		file = fopen("/home/junyuan/Desktop/dump.s", "w");
+	}
+//	if((gettimeofday(&t, NULL)) != -1) {
+		fprintf(file, "%x\t%x\t%x\t%x\n", \
+				instance, off, func, action);
+//	} else {
+//		assert(0);
+//	}
+
+}
+
+struct Instance {
+	size_t type;
+	unordered_set<string> *pset;
+};
+
+
+unordered_map<unsigned int, struct Instance > g_instances;
+unordered_map<size_t, string> g_access_callstack;
+static FILE *output_file1;
+static FILE *output_file2;
+
+
+size_t hash_access_callstack(uint32_t pc)
+{
+	hash<std::string> hash_fn;
+	string str;
+	stringstream ss;
+	size_t hash;
+
+	for(vector<unsigned int>:: iterator it = (*p_cur_retstack).begin(); 
+			it != (*p_cur_retstack).end(); it++) {
+		ss << hex <<*it;
+		ss << "->";
+	}
+	ss << pc;
+	str = ss.str();
+	hash = hash_callstack(pc);
+	if(g_access_callstack.count(hash)) {
+		g_access_callstack[hash] = str;
+		fprintf(output_file2, "%llx\t%s\n", hash, str.c_str());
+	}
+	return hash;
+}
+
+
+void cur_dump_callstack_pc(FILE *file, unsigned int pc)
+{
+	for(std::vector<unsigned int>::iterator it = (*p_cur_retstack).begin(); 
+			it != (*p_cur_retstack).end(); ++it){
+		fprintf(file, "%x->", *it);
+	}
+	fprintf(file, "%x\n", pc);
+}
+
+void set_info_proc(uint32_t addr)
+{
+	uint32_t esp = get_kernel_esp() & 0xffffe000;
+	if(g_all_info[esp].proc_addr) {
+		fprintf(stderr, "%x %x\n", esp, g_all_info[esp].proc_addr);
+		assert(0);
+	}
+	g_all_info[esp].proc_addr = addr;
+}
+
+void add_instance(size_t type, unsigned int addr)
+{
+	if(g_instances.count(addr)) {
+		fprintf(stderr, "old:%llx\tnew:%llx\n", g_instances[addr].type, type);
+		//assert(0);
+	}
+	
+	if(!output_file1) {
+		output_file1 = fopen("/home/junyuan/Desktop/dump_func.s", "w");
+		output_file2 = fopen("/home/junyuan/Desktop/dump_callstack.s", "w");
+	}
+
+	g_instances[addr].type = type;
+	g_instances[addr].pset = new unordered_set<string>();
+	//set_info_proc(addr);
+}
+
+//delete flag: -1:exception 0:normal
+void delete_instance(unsigned int addr)//, int flag)
+{
+	//if(!g_instances.count(addr)) {
+	//	assert(0);
+	//}
+
+	fprintf(output_file1, "%llx\t", g_instances[addr].type);
+	for(unordered_set<string>::iterator it2 = g_instances[addr].pset->begin();
+			it2 != g_instances[addr].pset->end();
+			it2++) {
+		fprintf(output_file1, "%s\t", it2->c_str());
+	}
+	fprintf(output_file1, "\n");
+	if(g_instances.count(addr)) {
+		delete(g_instances[addr].pset);
+		g_instances.erase(addr);
+	}
+}
+
+void add_action(unsigned int addr, unsigned int func, unsigned int off, unsigned int action)
+{
+	if(!g_instances.count(addr)) {
+		assert(0);
+	}
+
+
+	//hash_access_callstack(g_pc);	
+
+	stringstream ss;
+	ss <<hex<<func<<" "<<hex<<off<<" "<<action;
+	string s = ss.str();
+	g_instances[addr].pset->insert(s);
+}
+
+void check_if_success(void)
+{
+#if 0
+	uint32_t esp = get_kernel_esp() & 0xfffe000;
+	if((int)PEMU_get_reg(XED_REG_EAX) < 0
+			&&
+			(g_all_info[esp].sysnum == 120 || g_all_info[esp].sysnum == 2 
+				|| g_all_info[esp].sysnum == 190)) {
+		fprintf(stderr, "proc create failed\n", g_all_info[esp].proc_addr);
+		g_instances[g_all_info[esp].proc_addr];
+	}
+#endif
+}
+
+
+//end
+
+
+
 
 }

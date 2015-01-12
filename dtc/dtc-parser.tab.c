@@ -1,7 +1,7 @@
 #define YY_parse_h_included
 /*#define YY_USE_CLASS 
 */
-/*  A Bison++ parser, made from /home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y  */
+/*  A Bison++ parser, made from /home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y  */
 
  /* with Bison++ version bison++ Version 1.21.9-1, adapted from GNU bison by coetmeur@icdc.fr
 Maintained by Magnus Ekdahl <magnus@debian.org>
@@ -98,7 +98,7 @@ Maintained by Magnus Ekdahl <magnus@debian.org>
 #define YYBISON 1  
 
  #line 88 "/usr/share/bison++/bison.cc"
-#line 21 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 21 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 
 #include <stdio.h>
 
@@ -116,7 +116,7 @@ extern int treesource_error;
 
 static unsigned long long eval_literal(const char *s, int base, int bits);
 
-#line 39 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 39 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 typedef union {
 	char *propnodename;
 	char *literal;
@@ -1122,57 +1122,57 @@ YYLABEL(yyreduce)
   switch (yyn) {
 
 case 1:
-#line 87 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 87 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			the_boot_info = build_boot_info(yyvsp[-1].re, yyvsp[0].node,
 							guess_boot_cpuid(yyvsp[0].node));
 		;
     break;}
 case 2:
-#line 95 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 95 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.re = NULL;
 		;
     break;}
 case 3:
-#line 99 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 99 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.re = chain_reserve_entry(yyvsp[-1].re, yyvsp[0].re);
 		;
     break;}
 case 4:
-#line 106 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 106 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.re = build_reserve_entry(yyvsp[-2].addr, yyvsp[-1].addr);
 		;
     break;}
 case 5:
-#line 110 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 110 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			add_label(&yyvsp[0].re->labels, yyvsp[-1].labelref);
 			yyval.re = yyvsp[0].re;
 		;
     break;}
 case 6:
-#line 118 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 118 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.addr = eval_literal(yyvsp[0].literal, 0, 64);
 		;
     break;}
 case 7:
-#line 125 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 125 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.node = name_node(yyvsp[0].node, "");
 		;
     break;}
 case 8:
-#line 129 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 129 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.node = merge_nodes(yyvsp[-2].node, yyvsp[0].node);
 		;
     break;}
 case 9:
-#line 133 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 133 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			struct node *target = get_node_by_ref(yyvsp[-2].node, yyvsp[-1].labelref);
 
@@ -1184,68 +1184,68 @@ case 9:
 		;
     break;}
 case 10:
-#line 146 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 146 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.node = build_node(yyvsp[-3].proplist, yyvsp[-2].nodelist);
 		;
     break;}
 case 11:
-#line 153 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 153 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.proplist = NULL;
 		;
     break;}
 case 12:
-#line 157 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 157 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.proplist = chain_property(yyvsp[0].prop, yyvsp[-1].proplist);
 		;
     break;}
 case 13:
-#line 164 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 164 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.prop = build_property(yyvsp[-3].propnodename, yyvsp[-1].data);
 		;
     break;}
 case 14:
-#line 168 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 168 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.prop = build_property(yyvsp[-1].propnodename, empty_data);
 		;
     break;}
 case 15:
-#line 172 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 172 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			add_label(&yyvsp[0].prop->labels, yyvsp[-1].labelref);
 			yyval.prop = yyvsp[0].prop;
 		;
     break;}
 case 16:
-#line 180 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 180 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.data = data_merge(yyvsp[-1].data, yyvsp[0].data);
 		;
     break;}
 case 17:
-#line 184 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 184 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.data = data_merge(yyvsp[-3].data, yyvsp[-1].data);
 		;
     break;}
 case 18:
-#line 188 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 188 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.data = data_merge(yyvsp[-3].data, yyvsp[-1].data);
 		;
     break;}
 case 19:
-#line 192 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 192 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.data = data_add_marker(yyvsp[-1].data, REF_PATH, yyvsp[0].labelref);
 		;
     break;}
 case 20:
-#line 196 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 196 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			FILE *f = srcfile_relative_open(yyvsp[-5].data.val, NULL);
 			struct data d;
@@ -1264,7 +1264,7 @@ case 20:
 		;
     break;}
 case 21:
-#line 213 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 213 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			FILE *f = srcfile_relative_open(yyvsp[-1].data.val, NULL);
 			struct data d = empty_data;
@@ -1276,105 +1276,105 @@ case 21:
 		;
     break;}
 case 22:
-#line 223 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 223 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.data = data_add_marker(yyvsp[-1].data, LABEL, yyvsp[0].labelref);
 		;
     break;}
 case 23:
-#line 230 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 230 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.data = empty_data;
 		;
     break;}
 case 24:
-#line 234 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 234 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.data = yyvsp[-1].data;
 		;
     break;}
 case 25:
-#line 238 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 238 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.data = data_add_marker(yyvsp[-1].data, LABEL, yyvsp[0].labelref);
 		;
     break;}
 case 26:
-#line 245 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 245 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.data = empty_data;
 		;
     break;}
 case 27:
-#line 249 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 249 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.data = data_append_cell(yyvsp[-1].data, yyvsp[0].cell);
 		;
     break;}
 case 28:
-#line 253 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 253 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.data = data_append_cell(data_add_marker(yyvsp[-1].data, REF_PHANDLE,
 							      yyvsp[0].labelref), -1);
 		;
     break;}
 case 29:
-#line 258 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 258 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.data = data_add_marker(yyvsp[-1].data, LABEL, yyvsp[0].labelref);
 		;
     break;}
 case 30:
-#line 265 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 265 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.cell = eval_literal(yyvsp[0].literal, 0, 32);
 		;
     break;}
 case 31:
-#line 272 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 272 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.data = empty_data;
 		;
     break;}
 case 32:
-#line 276 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 276 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.data = data_append_byte(yyvsp[-1].data, yyvsp[0].byte);
 		;
     break;}
 case 33:
-#line 280 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 280 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.data = data_add_marker(yyvsp[-1].data, LABEL, yyvsp[0].labelref);
 		;
     break;}
 case 34:
-#line 287 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 287 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.nodelist = NULL;
 		;
     break;}
 case 35:
-#line 291 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 291 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.nodelist = chain_node(yyvsp[-1].node, yyvsp[0].nodelist);
 		;
     break;}
 case 36:
-#line 295 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 295 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			print_error("syntax error: properties must precede subnodes");
 			YYERROR;
 		;
     break;}
 case 37:
-#line 303 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 303 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			yyval.node = name_node(yyvsp[0].node, yyvsp[-1].propnodename);
 		;
     break;}
 case 38:
-#line 307 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 307 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 {
 			add_label(&yyvsp[0].node->labels, yyvsp[-1].labelref);
 			yyval.node = yyvsp[0].node;
@@ -1584,7 +1584,7 @@ YYLABEL(yyerrhandle)
 /* END */
 
  #line 1038 "/usr/share/bison++/bison.cc"
-#line 313 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 313 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 
 
 void print_error(char const *fmt, ...)

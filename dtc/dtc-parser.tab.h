@@ -13,7 +13,7 @@
 
  #line 8 "/usr/share/bison++/bison.h"
 
-#line 39 "/home/junyuan/Dropbox/trace_syscall_obj2/dtc/dtc-parser.y"
+#line 39 "/home/junyuan/Dropbox/source/kernel_rewards/dtc/dtc-parser.y"
 typedef union {
 	char *propnodename;
 	char *literal;

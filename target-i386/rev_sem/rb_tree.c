@@ -378,7 +378,7 @@ void ds_code_traverse(RB_CALLBACK callback, void* p)
 }
 
 
-
+//#define DEBUG
 extern int s_sysnum;
 extern void ds_code_erase_all(KeyType key, KeyType size);
 void ds_code_all_delete_rb(UInt start_addr)
@@ -387,6 +387,9 @@ void ds_code_all_delete_rb(UInt start_addr)
 
 	if((p = ds_code_rbtFind2(start_addr)) != NULL) {
 		set_deleteSys(s_sysnum, p);
+#ifdef DEBUG
+		fprintf(stdout, "delete: %x %s\n", p->key, p->obj_name);
+#endif
 		rbtErase(p);
 		ds_code_erase_all(start_addr, p->size);
 		return 1;
@@ -408,7 +411,6 @@ void ds_code_all_insert_rb(UInt start_addr, UInt size, NodeType p)
 	strcpy(data.name, p.obj_name);
 	set_createSys(s_sysnum, p.type, data);
 
-	//dump_rets(stdout, g_pc);
 	if((code = rbtInsert2(start_addr, size, p)) != RBT_STATUS_OK) {
 		fprintf(stderr, "error code: %d start_addr=%x size=%x\n", code, start_addr, size);
 		assert(0);

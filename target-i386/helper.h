@@ -202,6 +202,7 @@ DEF_HELPER_FLAGS_2(pext, TCG_CALL_NO_RWG_SE, tl, tl, tl)
 DEF_HELPER_1(hook, void, int)
 DEF_HELPER_2(load, void, tl, int)
 DEF_HELPER_3(store, void, tl, tl, int)
+DEF_HELPER_1(call_handler, void, tl)
 //end
 
 /* MMX/SSE */

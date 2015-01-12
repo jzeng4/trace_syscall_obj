@@ -46,6 +46,8 @@ void add_obj(uint32_t addr, uint32_t size, char *name, uint32_t call_pc)
 	strcpy(hp.obj_name, name);
 	delete_obj(call_pc);
 	ds_code_all_insert_rb(addr, hp.size, hp);
+
+	add_instance(hp.type, addr);
 }
 
 void object_hook(int pc_start)
@@ -65,18 +67,39 @@ void object_hook(int pc_start)
 		get_name(pc_start, name);
 		//uint32_t obj_addr = get_obj_addr(pc_start) != 0 ? get_obj_addr(pc_start) : PEMU_get_reg(XED_REG_EAX);
 		uint32_t obj_addr = PEMU_get_reg(XED_REG_EAX);
+
+
+		//TODO	
+		//if(strcmp(name, "task_struct")) {
+		//	return;
+		//}
+		//instance_action_print(obj_addr, 0, g_pc, 0);
+		//add_instance(obj_addr);
+		//end
+		
 		add_obj(obj_addr, get_size(pc_start), name, pc_start);
 	}
 	
 	if(pc_start == KMEM_CACHE_ALLOC) {
+		
+		//TODO:
+		//if(cur_get_ret() != 0xc11cd7c8) {
+		//	return;
+		//}
+		//end
+			
 		uint32_t tmp, tmp1;
 		if(is_dup_call_kmem_cache_alloc()) {//some special cases
 			return;
 		}
+
 		PEMU_read_mem(PEMU_get_reg(XED_REG_ESP), 4, &ret_addr);
 		get_kmem_cache_alloc_args(&objsize, name);
 		insert_obj(ret_addr, 0, objsize, name);
 	} else if(pc_start == TRACE_KMALLOC) {
+		//TODO
+		//return;
+		//end
 		uint32_t addr, size;
 		get_trace_kmalloc_args(&addr, &size);
 		PEMU_read_mem(PEMU_get_reg(XED_REG_ESP), 4, &ret_addr);
@@ -86,17 +109,39 @@ void object_hook(int pc_start)
 		}
 #endif
 		insert_obj(ret_addr, addr, size, "size-XX");
-	} else if(pc_start == KMEM_CACHE_FREE){
-		get_kmem_cache_free_args(&addr);
+	} else if(pc_start == KMEM_CACHE_FREE) {
+		get_kmem_cache_free_args(&addr);		
 		ds_code_all_delete_rb(addr);
 	} else if(pc_start == KFREE){
 		uint32_t addr1 = PEMU_get_reg(XED_REG_EAX);
-		uint32_t addr2 = PEMU_get_reg(XED_REG_ESI);
 		ds_code_all_delete_rb(addr1);
-		ds_code_all_delete_rb(addr2);
 	}
 }
 
+
+void trace_delete(unsigned int pc_start)
+{
+	unsigned int addr;
+	NodeType *p;
+	if(pc_start == KMEM_CACHE_FREE) {
+		get_kmem_cache_free_args(&addr);
+
+		if((p = ds_code_rbtFind2(addr)) != NULL) {
+			//instance_action_print(addr, 0, g_pc, 3);
+			delete_instance(addr);
+		}
+		ds_code_all_delete_rb(addr);
+			
+	} else if(pc_start == KFREE){
+		addr = PEMU_get_reg(XED_REG_EAX);
+		if((p = ds_code_rbtFind2(addr)) != NULL) {
+			//instance_action_print(addr, 0, g_pc, 3);
+			delete_instance(addr);
+		}
+		ds_code_all_delete_rb(addr);
+	}
+
+}
 
 void trace_functions(int pc_start)
 {
@@ -127,10 +172,11 @@ void callstack_hook(int pc_start)
 	}
 }
 
-
+#if 0
 void helper_store(target_ulong value, target_ulong addr, int size)
 {
-	if(enable_trace) {
+	if(enable_trace) 
+	{
 		NodeType *tmp;
 
 		if(addr < 0xc0000000 || (addr >= s_esp && addr < s_esp + STACK_SIZE) || s_esp == 0) {
@@ -155,7 +201,8 @@ void helper_store(target_ulong value, target_ulong addr, int size)
 
 void helper_load(target_ulong addr, int size)
 {
-	if(enable_trace) {
+	if(enable_trace) 
+	{
 		NodeType *tmp;
 		
 		if(addr < 0xc0000000 || (addr >= s_esp && addr < s_esp + STACK_SIZE) || s_esp == 0) {
@@ -174,6 +221,48 @@ void helper_load(target_ulong addr, int size)
 			fprintf(stdout, "Sys:%x Read: addr:%x type:%llx name:%s ret:%x cr3:%x esp:%x\n", 
 				s_sysnum, addr, tmp->type, tmp->obj_name, tmp->ret, tmp->cr3, tmp->esp);
 #endif
+		}
+	}
+}
+#endif
+
+void helper_store(target_ulong value, target_ulong addr, int size)
+{
+	{
+		NodeType *tmp;
+
+		if(addr < 0xc0000000 || (addr >= s_esp && addr < s_esp + STACK_SIZE)) {
+			return;
+		}
+		
+		//in case access kernel objects in ____cache_alloc
+		if(g_pc >= ____CACHE_ALLOC_START && g_pc <= ____CACHE_ALLOC_END) {
+			return;
+		}
+
+		if(tmp = ds_code_rbtFind2(addr)) {
+			add_action(tmp->key, addr-tmp->key, g_pc, 2);
+		}
+	}
+}
+
+
+void helper_load(target_ulong addr, int size)
+{
+	{
+		NodeType *tmp;
+		
+		if(addr < 0xc0000000 || (addr >= s_esp && addr < s_esp + STACK_SIZE)) {
+			return;
+		}
+		
+		//in case access kernel objects in ____cache_alloc
+		if(g_pc >= ____CACHE_ALLOC_START && g_pc <= ____CACHE_ALLOC_END) {
+			return;
+		}
+
+		if(tmp = ds_code_rbtFind2(addr)) {
+			add_action(tmp->key, addr-tmp->key, g_pc, 1);
 		}
 	}
 }
@@ -276,6 +365,8 @@ void trace_tss_esp(uint32_t pc_start)
 	}
 }
 
+
+#if 0
 void trace_all_activity(uint32_t pc_start) 
 {
 	uint32_t objsize, ret_addr, type, addr;
@@ -306,6 +397,8 @@ void trace_all_activity(uint32_t pc_start)
 		ds_code_all_delete_rb(PEMU_get_reg(XED_REG_EBX));
 	}
 }
+
+#endif
 
 void helper_hook(int pc_start)
 {
@@ -363,9 +456,9 @@ void helper_hook(int pc_start)
 		new_proc_start(pc_start);
 	}
 
-
 	//catch all the deletions:
 	//trace_all_activity(pc_start);	
+	trace_delete(pc_start);
 	//end
 
 	if(in_syscall_context()) {

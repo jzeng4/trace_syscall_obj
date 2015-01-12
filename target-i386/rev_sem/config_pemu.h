@@ -42,6 +42,8 @@
 #define __KMALLOC 0xc10ad425 /*start address for __kmalloc*/
 #define __KMALLOC_TRACK_CALLER 0xc10ad341 /*start address for __kmalloc_track_caller*/
 #define KMEM_CACHE_ALLOC_TRACE 0x0
+#define FUNCTION_INTERFACE "objs-2.6.32.8/signature_2.6.32.s"
+#define TYPE_64 "objs-2.6.32.8/type64_2.6.32.s"
 #endif
 
 #ifdef LINUX_3_2_58
@@ -103,4 +105,6 @@
 //#define MYCPUID
 #define CALLSTACK
 //#define INFER_SIZE
+#define RECORD_MEM_ACCESS
+//#define SEM_TYPES
 #endif

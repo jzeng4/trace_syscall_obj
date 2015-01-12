@@ -57,6 +57,7 @@ int PEMU_init(void *env)
 	load_syscalls();
 	//load_modules();
 	open_database();
+	load_function_interface();
 	//init_bbl();
 	//init_hashTable();
 	//init_disas();

@@ -236,6 +236,16 @@ int xed_regmapping[][3] = {
 };
 
 
+uint32_t PEMU_get_seg(xed_reg_enum_t reg_id)
+{
+	if(reg_id == XED_REG_INVALID)
+		return 0;
+	uint32_t reg = xed_regmapping[reg_id][0];
+	struct CPUX86State* env=(struct CPUX86State*)(first_cpu->env_ptr);
+	return env->segs[reg].base;
+}
+
+
 uint32_t PEMU_get_reg(xed_reg_enum_t reg_id)
 {
 	if(reg_id == XED_REG_INVALID)
@@ -255,5 +265,13 @@ uint32_t PEMU_get_cr3(void)
 int PEMU_read_mem(uint32_t vaddr, int len, void *buf)
 {
 	return cpu_memory_rw_debug(first_cpu, vaddr, buf, len, 0);
+}
+
+uint64_t PEMU_read_timer(void)
+{
+	uint64_t val;
+	struct CPUX86State* env=(struct CPUX86State*)(first_cpu->env_ptr);
+	val = cpu_get_tsc(env) + env->tsc_offset;
+	return val;
 }
 
