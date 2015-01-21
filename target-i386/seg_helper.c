@@ -1170,48 +1170,8 @@ extern uint32_t g_pc;
 static void do_interrupt_all(X86CPU *cpu, int intno, int is_int,
                              int error_code, target_ulong next_eip, int is_hw)
 {
-#if 0
-	if(pemu_exec_stats.PEMU_main_start
-			&& pemu_exec_stats.PEMU_cr3 == PEMU_get_cr3()) {
-		if(intno == 0x80) {
-			if(pemu_exec_stats.PEMU_syscall_num == PEMU_get_reg(XED_REG_EAX)) {
-				pemu_exec_stats.PEMU_start_trace_syscall = 1;
-				pemu_exec_stats.PEMU_int_level = 0;
-				//set_taint_source_args();
-#ifdef PEMU_DEBUG
-				struct CPUX86State* env=(struct CPUX86State*)(first_cpu->env_ptr);
-				fprintf(stderr, "int80 start syscall:%d\n", env->regs[R_EAX]);
-#endif
-			}
-		} else {
-			if(pemu_exec_stats.PEMU_start_trace_syscall) {
-				pemu_exec_stats.PEMU_int_level++;
-#ifdef PEMU_DEBUG
-				fprintf(stdout, "interrupt:%d\n", pemu_exec_stats.PEMU_int_level);
-#endif
-			}
-		}
-	}
 
-	//trace objects creation/deletion by all other process syscall
-	uint32_t esp = get_kernel_esp() & 0xffffe000;
-	if(intno == 0x80) {
-		if(is_proc_intr_exist(esp) || is_all_retaddr_exist(esp)) {
-			fprintf(stderr, "esp: %x\n", esp);
-			//assert(0);
-		}
-		create_proc_intr(esp, 1);
-		create_all_retstacks(esp);
-	} else {
-		if(is_proc_intr_exist(esp)) {
-			incr_proc_intr(esp);
-		}
-	}
-#endif
-
-#ifdef TRACE_SYSCALL_OBJ
-	//printf("esp:%x interrupt: %x\n", get_kernel_esp() & 0xffffe000, intno);
-	
+#ifdef TRACE_SYSCALL_OBJ	
 	if(intno == 0x80) {
 		syscall_enter(get_kernel_esp() & 0xffffe000, 1);		
 	} else {
@@ -1219,6 +1179,11 @@ static void do_interrupt_all(X86CPU *cpu, int intno, int is_int,
 			inc_intr();
 		}
 	}
+#else
+	if(intno != 0x80) {
+		uint32_t esp = PEMU_get_reg(XED_REG_ESP) ;
+		add_interrupt_esp(esp & 0xffffe000, esp, intno);
+	} 
 #endif
 //end
 
@@ -2081,7 +2046,9 @@ static inline void helper_ret_protected(CPUX86State *env, int shift,
               new_cs, new_eip, shift, addend);
     LOG_PCALL_STATE(CPU(x86_env_get_cpu(env)));
 	//jzeng
+#ifdef TRACE_SYSCALL_OBJ
 	pemu_exec_stats.PEMU_iret_target_pc = new_eip;
+#endif
 	//end
     if ((new_cs & 0xfffc) == 0) {
         raise_exception_err(env, EXCP0D_GPF, new_cs & 0xfffc);
@@ -2332,6 +2299,9 @@ void helper_iret_protected(CPUX86State *env, int shift, int next_eip)
 			decr_intr();
 		}
 	}
+#else
+	uint32_t esp = get_kernel_esp() & 0xffffe000;
+	delete_interrupt_esp(esp);
 #endif
 //end
 }

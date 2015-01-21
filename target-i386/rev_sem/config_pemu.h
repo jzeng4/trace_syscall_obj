@@ -44,6 +44,10 @@
 #define KMEM_CACHE_ALLOC_TRACE 0x0
 #define FUNCTION_INTERFACE "objs-2.6.32.8/signature_2.6.32.s"
 #define TYPE_64 "objs-2.6.32.8/type64_2.6.32.s"
+#define NO_TEXT ret_addr < 0xc1000000 || ret_addr > 0xc1402ede// || ret_addr == 0xc1382e9c
+//#define TIME_INTERRUPT ret_addr == 0xc1003bf5
+//#define COMMON_INTERRUPT ret_addr == 0xc10038b0
+//#define COMMON_EXCEPTION ret_addr == 0xc1269ecb
 #endif
 
 #ifdef LINUX_3_2_58
@@ -99,8 +103,7 @@
 #endif
 
 
-#define TRACE_SYSCALL_OBJ
-#define TRACECALLSTACK
+//#define TRACE_SYSCALL_OBJ
 #define NOSCHEDULE
 //#define MYCPUID
 #define CALLSTACK

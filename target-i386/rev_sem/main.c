@@ -46,8 +46,8 @@ void add_obj(uint32_t addr, uint32_t size, char *name, uint32_t call_pc)
 	strcpy(hp.obj_name, name);
 	delete_obj(call_pc);
 	ds_code_all_insert_rb(addr, hp.size, hp);
-
 	add_instance(hp.type, addr);
+	set_mem_taint_bysize2(addr, 0, size);
 }
 
 void object_hook(int pc_start)
@@ -67,8 +67,6 @@ void object_hook(int pc_start)
 		get_name(pc_start, name);
 		//uint32_t obj_addr = get_obj_addr(pc_start) != 0 ? get_obj_addr(pc_start) : PEMU_get_reg(XED_REG_EAX);
 		uint32_t obj_addr = PEMU_get_reg(XED_REG_EAX);
-
-
 		//TODO	
 		//if(strcmp(name, "task_struct")) {
 		//	return;
@@ -172,66 +170,12 @@ void callstack_hook(int pc_start)
 	}
 }
 
-#if 0
-void helper_store(target_ulong value, target_ulong addr, int size)
-{
-	if(enable_trace) 
-	{
-		NodeType *tmp;
-
-		if(addr < 0xc0000000 || (addr >= s_esp && addr < s_esp + STACK_SIZE) || s_esp == 0) {
-			return;
-		}
-		
-		//in case access kernel objects in ____cache_alloc
-		if(g_pc >= ____CACHE_ALLOC_START && g_pc <= ____CACHE_ALLOC_END) {
-			return;
-		}
-
-		if(tmp = ds_code_rbtFind2(addr)) {
-			set_writeSys(s_sysnum, addr, tmp);
-#ifdef DEBUG
-			fprintf(stdout, "Sys:%x Write: addr:%x type:%llx name:%s ret:%x cr3:%x esp:%x\n", 
-				s_sysnum, addr, tmp->type, tmp->obj_name, tmp->ret, tmp->cr3, tmp->esp);
-#endif
-		}
-	}
-}
-
-
-void helper_load(target_ulong addr, int size)
-{
-	if(enable_trace) 
-	{
-		NodeType *tmp;
-		
-		if(addr < 0xc0000000 || (addr >= s_esp && addr < s_esp + STACK_SIZE) || s_esp == 0) {
-			return;
-		}
-		
-		//in case access kernel objects in ____cache_alloc
-		if(g_pc >= ____CACHE_ALLOC_START && g_pc <= ____CACHE_ALLOC_END) {
-			return;
-		}
-
-		if(tmp = ds_code_rbtFind2(addr)) {
-			set_readSys(s_sysnum, addr, tmp);
-#ifdef DEBUG
-			printf("key:%x size:%x addr:%x\n", tmp->key, tmp->size, addr);
-			fprintf(stdout, "Sys:%x Read: addr:%x type:%llx name:%s ret:%x cr3:%x esp:%x\n", 
-				s_sysnum, addr, tmp->type, tmp->obj_name, tmp->ret, tmp->cr3, tmp->esp);
-#endif
-		}
-	}
-}
-#endif
-
 void helper_store(target_ulong value, target_ulong addr, int size)
 {
 	{
 		NodeType *tmp;
 
-		if(addr < 0xc0000000 || (addr >= s_esp && addr < s_esp + STACK_SIZE)) {
+		if(addr < 0xc0000000) {
 			return;
 		}
 		
@@ -241,7 +185,7 @@ void helper_store(target_ulong value, target_ulong addr, int size)
 		}
 
 		if(tmp = ds_code_rbtFind2(addr)) {
-			add_action(tmp->key, addr-tmp->key, g_pc, 2);
+			add_write_action(tmp->key, size, addr-tmp->key, g_pc, 2);
 		}
 	}
 }
@@ -252,7 +196,7 @@ void helper_load(target_ulong addr, int size)
 	{
 		NodeType *tmp;
 		
-		if(addr < 0xc0000000 || (addr >= s_esp && addr < s_esp + STACK_SIZE)) {
+		if(addr < 0xc0000000) {
 			return;
 		}
 		
@@ -262,7 +206,7 @@ void helper_load(target_ulong addr, int size)
 		}
 
 		if(tmp = ds_code_rbtFind2(addr)) {
-			add_action(tmp->key, addr-tmp->key, g_pc, 1);
+			add_read_action(tmp->key, size, addr-tmp->key, g_pc, 1);
 		}
 	}
 }
@@ -365,41 +309,6 @@ void trace_tss_esp(uint32_t pc_start)
 	}
 }
 
-
-#if 0
-void trace_all_activity(uint32_t pc_start) 
-{
-	uint32_t objsize, ret_addr, type, addr;
-	char name[50];
-	
-	if(get_obj1(pc_start)) {
-		ds_code_erase_all(PEMU_get_reg(XED_REG_EAX), get_size1(pc_start));
-		delete_obj1(pc_start);
-	}
-	
-	if(pc_start == KMEM_CACHE_ALLOC) {
-		uint32_t tmp, tmp1;
-		PEMU_read_mem(PEMU_get_reg(XED_REG_ESP), 4, &ret_addr);
-		get_kmem_cache_alloc_args(&objsize, name);
-		//insert_obj1(ret_addr, objsize);
-		return;
-		//printf("KMEM_CACHE_ALLOC %x\n", get_obj1(ret_addr));
-	} else if(pc_start == KMEM_CACHE_FREE) {
-		get_kmem_cache_free_args(&addr);
-		ds_code_all_delete_rb(addr);
-	} else if(pc_start == TRACE_KMALLOC) {
-		uint32_t addr, size;
-		get_trace_kmalloc_args(&addr, &size);
-		PEMU_read_mem(PEMU_get_reg(XED_REG_ESP), 4, &ret_addr);
-		//ds_code_erase_all(addr, size);
-	} else if(pc_start == KFREE) {
-		ds_code_all_delete_rb(PEMU_get_reg(XED_REG_EAX));
-		ds_code_all_delete_rb(PEMU_get_reg(XED_REG_EBX));
-	}
-}
-
-#endif
-
 void helper_hook(int pc_start)
 {
 
@@ -443,8 +352,8 @@ void helper_hook(int pc_start)
 	return;
 #endif
 
-#ifdef TRACE_SYSCALL_OBJ
 
+#ifdef TRACE_SYSCALL_OBJ
 	enable_trace = 0;
 	
 	if(pc_start < KERNEL_ADDR_MIN)
@@ -507,6 +416,12 @@ void helper_hook(int pc_start)
 			enable_trace = 1;
 		}
 	}
+#else
+	if(pc_start < KERNEL_ADDR_MIN)
+		return;
+	g_pc = pc_start;
+	trace_delete(pc_start);
+	object_hook(pc_start);
 #endif
 }
 

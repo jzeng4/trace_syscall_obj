@@ -37,7 +37,7 @@ void set_mem_taint_bysize( Addr a, unsigned int bytes, UInt size);
 
 void taintInit2();
 unsigned int get_mem_taint2( Addr a );
-void set_mem_taint2( Addr a, unsigned int bytes);
+//void set_mem_taint2( Addr a, unsigned int bytes);
 void set_reg_taint2(xed_reg_enum_t reg, unsigned int bytes);
 unsigned int get_reg_taint2(xed_reg_enum_t reg);
 void set_mem_taint_bysize2( Addr a, unsigned int bytes, UInt size);

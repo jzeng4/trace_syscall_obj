@@ -95,12 +95,15 @@ extern "C"{
 FILE *output_file;
 void dump_rets(FILE *file, unsigned pc);
 void dump_all_rets(unsigned int esp, unsigned pc);
+//size_t hash_callstack_ebp(unsigned int);
+string get_callstack_ebp(uint32_t pc);
+
 ////////////////////////////////
 size_t hash_callstack(uint32_t pc)
 {
 //	dump_rets(stdout, pc);
-#ifdef CALLSTACK
 	hash<std::string> hash_fn;
+#ifdef TRACE_SYSCALL_OBJ
 	string str;
 	stringstream ss;
 
@@ -112,7 +115,8 @@ size_t hash_callstack(uint32_t pc)
 	str = ss.str();
 	return hash_fn(str);
 #else
-	return pc;
+	return hash_fn(get_callstack_ebp(pc));
+	//return hash_callstack_ebp(pc);
 #endif
 }
 
@@ -175,6 +179,7 @@ size_t hash_delete_callstack(uint32_t pc)
 
 uint32_t is_dup_call_kmem_cache_alloc(void)
 {
+#ifdef TRACE_SYSCALL_OBJ
 	for (vector<unsigned int>::reverse_iterator rit = (*p_cur_callstack).rbegin();
 			rit != (*p_cur_callstack).rend(); ++rit) {
 		if((*rit == KMEM_CACHE_ALLOC || *rit == __KMALLOC || *rit == __KMALLOC_TRACK_CALLER)
@@ -186,6 +191,9 @@ uint32_t is_dup_call_kmem_cache_alloc(void)
 			return 1;
 		}
 	}
+#else
+
+#endif
 	return 0;
 }
 
@@ -523,25 +531,23 @@ int cur_delete_retaddr(unsigned int pc)
 
 void cur_dump_callstack(FILE *file, unsigned int pc)
 {
+#ifdef TRACE_SYSCALL_OBJ
 	fprintf(file, "%p rets:", p_cur_retstack);
 	for(std::vector<unsigned int>::iterator it = (*p_cur_retstack).begin(); 
 			it != (*p_cur_retstack).end(); ++it){
 		fprintf(file, "%x->", *it);
 	}
 	fprintf(file, "%x\n", pc);
-#if 0	
-	fprintf(file, "%p rets:", p_cur_callstack);
-	for(std::vector<unsigned int>::iterator it = (*p_cur_callstack).begin(); 
-			it != (*p_cur_callstack).end(); ++it){
-		fprintf(file, "%x->", *it);
-	}
-	fprintf(file, "%x\n", pc);
+#else
+	string s = get_callstack_ebp(pc);
+	fprintf(file, "%s\n", s.c_str());
 #endif
 }
 
 
 string get_cur_callstack_str(unsigned int pc)
 {
+#ifdef TRACE_SYSCALL_OBJ
 	stringstream ss;
 	string r = "rets:";
 	for(std::vector<unsigned int>::iterator it = (*p_cur_retstack).begin(); 
@@ -551,6 +557,9 @@ string get_cur_callstack_str(unsigned int pc)
 	ss<<hex<<pc;
 	r += ss.str();
 	return r;
+#else
+	return get_callstack_ebp(pc);
+#endif
 }
 
 
@@ -1309,6 +1318,7 @@ int recover_sem_types(unsigned int target_pc)
 
 //action: 0-create, 1-read, 2-write, 3-delete;
 #include <time.h>
+#if 0
 uint64_t PEMU_read_timer(void);
 void instance_action_print(unsigned int instance, unsigned int off, unsigned int func, int action)
 {
@@ -1325,40 +1335,29 @@ void instance_action_print(unsigned int instance, unsigned int off, unsigned int
 //	}
 
 }
+#endif
+
+
 
 struct Instance {
 	size_t type;
 	unordered_set<string> *pset;
 };
 
+struct ESP {
+	unsigned int max_esp;
+	unsigned int int_num;
+	ESP(unsigned int esp, unsigned int num) {
+		max_esp = esp;
+		int_num = num;
+	}
+};
 
 unordered_map<unsigned int, struct Instance > g_instances;
 unordered_map<size_t, string> g_access_callstack;
+unordered_map<unsigned int, stack<struct ESP> > g_interrupt_esp;
 static FILE *output_file1;
 static FILE *output_file2;
-
-
-size_t hash_access_callstack(uint32_t pc)
-{
-	hash<std::string> hash_fn;
-	string str;
-	stringstream ss;
-	size_t hash;
-
-	for(vector<unsigned int>:: iterator it = (*p_cur_retstack).begin(); 
-			it != (*p_cur_retstack).end(); it++) {
-		ss << hex <<*it;
-		ss << "->";
-	}
-	ss << pc;
-	str = ss.str();
-	hash = hash_callstack(pc);
-	if(g_access_callstack.count(hash)) {
-		g_access_callstack[hash] = str;
-		fprintf(output_file2, "%llx\t%s\n", hash, str.c_str());
-	}
-	return hash;
-}
 
 
 void cur_dump_callstack_pc(FILE *file, unsigned int pc)
@@ -1417,25 +1416,164 @@ void delete_instance(unsigned int addr)//, int flag)
 	}
 }
 
-void add_action(unsigned int addr, unsigned int func, unsigned int off, unsigned int action)
+static inline string int_to_string(unsigned int addr)
+{
+   	stringstream ss;
+	ss << hex <<addr;
+	return ss.str();
+}
+
+
+struct ESP get_interrupt_new(unsigned int esp_key);
+string get_callstack_ebp(uint32_t pc)
+{
+#if 0
+	uint32_t ret_addr;
+	uint32_t kernel_esp = get_kernel_esp() & 0xffffe000;
+	string str;
+	
+	uint32_t ebp = PEMU_get_reg(XED_REG_EBP);
+
+	str = int_to_string(pc);	
+	while(1) {
+		if(ebp < kernel_esp || ebp > kernel_esp+STACK_SIZE) {
+			break;
+		}
+		PEMU_read_mem(ebp+4, 4, &ret_addr);
+		if(NO_TEXT) { //make sure text range
+			break;
+		}
+		str = int_to_string(ret_addr)+"->"+str;
+		if(TIME_INTERRUPT || COMMON_INTERRUPT || COMMON_EXCEPTION) { //interrupt context
+			break;
+		}
+		PEMU_read_mem(ebp, 4, &ebp);
+	}
+//	cout<<str<<endl;
+	return str;
+#endif
+	uint32_t ret_addr;
+	uint32_t kernel_esp = get_kernel_esp() & 0xffffe000;
+	string str;
+
+	uint32_t esp_max;
+	uint32_t int_num;
+	struct ESP info = get_interrupt_new(kernel_esp);
+	if(info.max_esp != 0) {
+		esp_max = info.max_esp;
+		int_num = info.int_num;
+	} else {
+		esp_max = kernel_esp + STACK_SIZE;
+		int_num = -1;
+	}
+	
+	uint32_t ebp = PEMU_get_reg(XED_REG_EBP);
+
+	str = int_to_string(pc);
+	while(1) {
+		if(ebp < kernel_esp || ebp+4 >= esp_max) {
+			break;
+		}
+		PEMU_read_mem(ebp+4, 4, &ret_addr);
+		
+//		if(NO_TEXT) { //make sure text range
+//			break;
+//		}
+		str = int_to_string(ret_addr)+"->"+str;
+		
+		if(PEMU_read_mem(ebp, 4, &ebp) < 0) {
+			break;
+		}
+	}
+//	cout<<str<<endl;
+	if(int_num != -1) {
+		str = "I-" + to_string(int_num) + ":" + str;
+	}
+	return str;
+}
+
+void add_read_action(unsigned int addr, unsigned int size, unsigned int off, unsigned int func, unsigned int action)
 {
 	if(!g_instances.count(addr)) {
 		assert(0);
 	}
 
-
-	//hash_access_callstack(g_pc);	
+	string cs = get_callstack_ebp(g_pc);
+	hash<std::string> hash_fn;
+	size_t hash = hash_fn(cs);
+	if(!g_access_callstack.count(hash)) {
+		g_access_callstack[hash] = cs;
+		fprintf(output_file2, "%llx:%s\n", hash, cs.c_str());
+	}
 
 	stringstream ss;
-	ss <<hex<<func<<" "<<hex<<off<<" "<<action;
+	//ss <<hex<<func<<" "<<hex<<off<<" "<<action;
+	ss <<hex<<hash<<":"<<get_mem_taint2(addr+off)<<":"<<hex<<func<<hex<<off;
+	//set_mem_taint_bysize2(addr, 1, 1);
 	string s = ss.str();
 	g_instances[addr].pset->insert(s);
 }
 
+
+void add_write_action(unsigned int addr, unsigned int size, unsigned int off, unsigned int func, unsigned int action)
+{
+	if(!g_instances.count(addr)) {
+		assert(0);
+	}
+
+	string cs = get_callstack_ebp(g_pc);
+	hash<std::string> hash_fn;
+	size_t hash = hash_fn(cs);
+	if(!g_access_callstack.count(hash)) {
+		g_access_callstack[hash] = cs;
+		fprintf(output_file2, "%llx:%s\n", hash, cs.c_str());
+	}
+
+	stringstream ss;
+	//ss <<hex<<func<<" "<<hex<<off<<" "<<action;
+	ss <<hex<<hash<<":"<<get_mem_taint2(addr+off)<<":"<<hex<<func<<hex<<off;
+	set_mem_taint_bysize2(addr+off, 1, size);
+	string s = ss.str();
+	g_instances[addr].pset->insert(s);
+}
+
+
+void add_interrupt_esp(unsigned int esp_key, unsigned int max_esp, int int_num)
+{
+	struct ESP e(max_esp, int_num);
+	g_interrupt_esp[esp_key].push(e);
+}
+
+struct ESP get_interrupt_new(unsigned int esp_key)
+{
+	ESP r(0, 0);
+	if(g_interrupt_esp.count(esp_key)) {
+		r = g_interrupt_esp[esp_key].top();
+	}
+	return r;
+}
+
+
+void delete_interrupt_esp(unsigned int esp_key)
+{
+	if(g_interrupt_esp.count(esp_key)) {
+		if(g_interrupt_esp[esp_key].size() != 0) {
+			//assert(0);
+			g_interrupt_esp[esp_key].pop();
+			if(g_interrupt_esp[esp_key].size() == 0) {
+				g_interrupt_esp.erase(esp_key);
+			}
+		}
+	} else {
+		//assert(0);
+	}
+}	
+
+
 void check_if_success(void)
 {
 #if 0
-	uint32_t esp = get_kernel_esp() & 0xfffe000;
+	uint32_t esp = get_kernel_esp() & 0xffffe000;
 	if((int)PEMU_get_reg(XED_REG_EAX) < 0
 			&&
 			(g_all_info[esp].sysnum == 120 || g_all_info[esp].sysnum == 2 
