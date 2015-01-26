@@ -1453,7 +1453,7 @@ string get_callstack_ebp(uint32_t pc)
 	return str;
 #endif
 	uint32_t ret_addr;
-	uint32_t kernel_esp = get_kernel_esp() & 0xffffe000;
+	uint32_t kernel_esp = PEMU_get_reg(XED_REG_ESP) & 0xffffe000;
 	string str;
 
 	uint32_t esp_max;
@@ -1467,7 +1467,13 @@ string get_callstack_ebp(uint32_t pc)
 		int_num = -1;
 	}
 	
-	uint32_t ebp = PEMU_get_reg(XED_REG_EBP);
+	
+	uint32_t ebp;
+	if(HARD_CODE_SCHED1) {
+		PEMU_read_mem(PEMU_get_reg(XED_REG_ESP), 4, &ebp);
+	} else {
+		ebp = PEMU_get_reg(XED_REG_EBP);
+	}
 
 	str = int_to_string(pc);
 	while(1) {
@@ -1475,20 +1481,23 @@ string get_callstack_ebp(uint32_t pc)
 			break;
 		}
 		PEMU_read_mem(ebp+4, 4, &ret_addr);
-		
-//		if(NO_TEXT) { //make sure text range
-//			break;
-//		}
+
 		str = int_to_string(ret_addr)+"->"+str;
-		
-		if(PEMU_read_mem(ebp, 4, &ebp) < 0) {
+//		str += " " + int_to_string(ebp);
+		if(HARD_CODE_SCHED2) {
+			PEMU_read_mem(ebp+8, 4, &ebp);
+		} else if(PEMU_read_mem(ebp, 4, &ebp) < 0 
+				|| TIME_INTERRUPT
+				|| COMMON_INTERRUPT
+				|| COMMON_EXCEPTION) {
 			break;
-		}
+		} 	
 	}
 //	cout<<str<<endl;
 	if(int_num != -1) {
 		str = "I-" + to_string(int_num) + ":" + str;
 	}
+//	str += " " + int_to_string(ebp)+" "+ int_to_string(esp_max);
 	return str;
 }
 

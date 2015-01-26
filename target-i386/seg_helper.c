@@ -1179,9 +1179,10 @@ static void do_interrupt_all(X86CPU *cpu, int intno, int is_int,
 			inc_intr();
 		}
 	}
-#else
+#endif
+#ifdef RECORD_MEM_ACCESS 
 	if(intno != 0x80) {
-		uint32_t esp = PEMU_get_reg(XED_REG_ESP) ;
+		uint32_t esp = get_kernel_esp(XED_REG_ESP) ;
 		add_interrupt_esp(esp & 0xffffe000, esp, intno);
 	} 
 #endif
@@ -2299,7 +2300,8 @@ void helper_iret_protected(CPUX86State *env, int shift, int next_eip)
 			decr_intr();
 		}
 	}
-#else
+#endif
+#ifdef RECORD_MEM_ACCESS
 	uint32_t esp = get_kernel_esp() & 0xffffe000;
 	delete_interrupt_esp(esp);
 #endif

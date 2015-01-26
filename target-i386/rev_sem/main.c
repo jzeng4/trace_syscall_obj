@@ -46,8 +46,10 @@ void add_obj(uint32_t addr, uint32_t size, char *name, uint32_t call_pc)
 	strcpy(hp.obj_name, name);
 	delete_obj(call_pc);
 	ds_code_all_insert_rb(addr, hp.size, hp);
+#ifdef RECORD_MEM_ACCESS
 	add_instance(hp.type, addr);
 	set_mem_taint_bysize2(addr, 0, size);
+#endif
 }
 
 void object_hook(int pc_start)
@@ -65,27 +67,11 @@ void object_hook(int pc_start)
 
 	if(get_obj(pc_start)) {
 		get_name(pc_start, name);
-		//uint32_t obj_addr = get_obj_addr(pc_start) != 0 ? get_obj_addr(pc_start) : PEMU_get_reg(XED_REG_EAX);
 		uint32_t obj_addr = PEMU_get_reg(XED_REG_EAX);
-		//TODO	
-		//if(strcmp(name, "task_struct")) {
-		//	return;
-		//}
-		//instance_action_print(obj_addr, 0, g_pc, 0);
-		//add_instance(obj_addr);
-		//end
-		
 		add_obj(obj_addr, get_size(pc_start), name, pc_start);
 	}
 	
 	if(pc_start == KMEM_CACHE_ALLOC) {
-		
-		//TODO:
-		//if(cur_get_ret() != 0xc11cd7c8) {
-		//	return;
-		//}
-		//end
-			
 		uint32_t tmp, tmp1;
 		if(is_dup_call_kmem_cache_alloc()) {//some special cases
 			return;
@@ -95,9 +81,6 @@ void object_hook(int pc_start)
 		get_kmem_cache_alloc_args(&objsize, name);
 		insert_obj(ret_addr, 0, objsize, name);
 	} else if(pc_start == TRACE_KMALLOC) {
-		//TODO
-		//return;
-		//end
 		uint32_t addr, size;
 		get_trace_kmalloc_args(&addr, &size);
 		PEMU_read_mem(PEMU_get_reg(XED_REG_ESP), 4, &ret_addr);
@@ -123,19 +106,21 @@ void trace_delete(unsigned int pc_start)
 	NodeType *p;
 	if(pc_start == KMEM_CACHE_FREE) {
 		get_kmem_cache_free_args(&addr);
-
+#ifdef RECORD_MEM_ACCESS
 		if((p = ds_code_rbtFind2(addr)) != NULL) {
-			//instance_action_print(addr, 0, g_pc, 3);
 			delete_instance(addr);
 		}
+#endif
 		ds_code_all_delete_rb(addr);
 			
 	} else if(pc_start == KFREE){
 		addr = PEMU_get_reg(XED_REG_EAX);
+#ifdef RECORD_MEM_ACCESS
 		if((p = ds_code_rbtFind2(addr)) != NULL) {
 			//instance_action_print(addr, 0, g_pc, 3);
 			delete_instance(addr);
 		}
+#endif
 		ds_code_all_delete_rb(addr);
 	}
 
@@ -178,11 +163,13 @@ void helper_store(target_ulong value, target_ulong addr, int size)
 		if(addr < 0xc0000000) {
 			return;
 		}
-		
+
+#if 0
 		//in case access kernel objects in ____cache_alloc
 		if(g_pc >= ____CACHE_ALLOC_START && g_pc <= ____CACHE_ALLOC_END) {
 			return;
 		}
+#endif
 
 		if(tmp = ds_code_rbtFind2(addr)) {
 			add_write_action(tmp->key, size, addr-tmp->key, g_pc, 2);
@@ -199,11 +186,12 @@ void helper_load(target_ulong addr, int size)
 		if(addr < 0xc0000000) {
 			return;
 		}
-		
+#if 0	
 		//in case access kernel objects in ____cache_alloc
 		if(g_pc >= ____CACHE_ALLOC_START && g_pc <= ____CACHE_ALLOC_END) {
 			return;
 		}
+#endif
 
 		if(tmp = ds_code_rbtFind2(addr)) {
 			add_read_action(tmp->key, size, addr-tmp->key, g_pc, 1);
@@ -213,7 +201,7 @@ void helper_load(target_ulong addr, int size)
 
 void trace_kmem_create(int pc_start)
 {
-#if 0 //for linux
+#if 1 //for linux
 	static uint32_t size = 0;	
 	if(get_kmem_obj(pc_start)){
 		char name[100];
@@ -223,8 +211,8 @@ void trace_kmem_create(int pc_start)
 		delete_kmem(pc_start);
 	}
 
-	//if(pc_start == KMEM_CACHE_CREATE){
-	if(pc_start == 0xc10c302f) {
+	if(pc_start == KMEM_CACHE_CREATE){
+	//if(pc_start == 0xc10c302f) {
 		uint32_t ret_addr;
 		char name[100];
 		size = PEMU_get_reg(XED_REG_EDX);
@@ -232,7 +220,7 @@ void trace_kmem_create(int pc_start)
 		PEMU_read_mem(PEMU_get_reg(XED_REG_ESP), 4, &ret_addr);
 		insert_kmem_obj(ret_addr, name);
 	}
-#endif
+#else
 	//freebsd
 	static uint32_t size = 0;	
 	if(get_kmem_obj(pc_start)){
@@ -254,6 +242,7 @@ void trace_kmem_create(int pc_start)
 		PEMU_read_mem(ptr, 20, name);
 		insert_kmem_obj(ret_addr, name);
 	}
+#endif
 }
 
 void find_kstack_switch(int pc_start)
@@ -304,9 +293,15 @@ void find_kstack_switch(int pc_start)
 
 void trace_tss_esp(uint32_t pc_start)
 {
+#if 0
 	if(pc_start == 0xc1003138) {
 		printf("esp:%x\n", PEMU_get_reg(XED_REG_ESP));
 	}
+#endif
+	if(pc_start == 0xc12dbb5c) {
+		printf("esp:%x\n", PEMU_get_reg(XED_REG_ESP));
+	}
+
 }
 
 void helper_hook(int pc_start)
@@ -416,13 +411,21 @@ void helper_hook(int pc_start)
 			enable_trace = 1;
 		}
 	}
-#else
+#endif
+
+#if 0
+	if(pc_start > 0xc0000000) {
+		trace_tss_esp(pc_start);
+	}
+
+	return 0;
+#endif
+
 	if(pc_start < KERNEL_ADDR_MIN)
 		return;
 	g_pc = pc_start;
 	trace_delete(pc_start);
 	object_hook(pc_start);
-#endif
 }
 
 

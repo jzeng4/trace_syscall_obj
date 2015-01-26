@@ -5,9 +5,9 @@
 #define TIMMER
 
 //#define LINUX_2_6_32_8
-#define LINUX_2_6_32_8_NO_TRACE
+//#define LINUX_2_6_32_8_NO_TRACE
 //#define LINUX_3_2_58
-//#define LINUX_3_2_58_NO_TRACE
+#define LINUX_3_2_58_NO_TRACE
 //#define FREEBSD_9_1
 
 
@@ -44,10 +44,13 @@
 #define KMEM_CACHE_ALLOC_TRACE 0x0
 #define FUNCTION_INTERFACE "objs-2.6.32.8/signature_2.6.32.s"
 #define TYPE_64 "objs-2.6.32.8/type64_2.6.32.s"
-#define NO_TEXT ret_addr < 0xc1000000 || ret_addr > 0xc1402ede// || ret_addr == 0xc1382e9c
-//#define TIME_INTERRUPT ret_addr == 0xc1003bf5
-//#define COMMON_INTERRUPT ret_addr == 0xc10038b0
-//#define COMMON_EXCEPTION ret_addr == 0xc1269ecb
+//#define NO_TEXT ret_addr < 0xc1000000 || ret_addr > 0xc1402ede// || ret_addr == 0xc1382e9c
+#define TIME_INTERRUPT ret_addr == 0xc1003bf5
+#define COMMON_INTERRUPT ret_addr == 0xc10038b0
+#define COMMON_EXCEPTION ret_addr == 0xc1269ecb
+#define HARD_CODE_SCHED1 pc >= 0xc1268a66 && pc <= 0xc1268a88
+#define HARD_CODE_SCHED2 ret_addr >= 0xc1268a66 && ret_addr <= 0xc1268a88
+
 #endif
 
 #ifdef LINUX_3_2_58
@@ -66,21 +69,31 @@
 
 
 #ifdef LINUX_3_2_58_NO_TRACE
-#define KMEM_CACHE_CREATE 0xc10c2d9a /*address of kmem_cache_create*/
-#define KMEM_CACHE_ALLOC 0xc10c2264 /*address of kmem_cache_alloc*/
-#define KMEM_CACHE_FREE	0xc10c1d60  /*address of kmem_cache_free*/
-#define SCHED_ADDR 0xc12c17cf  /*address of schedule function*/
+#define KMEM_CACHE_CREATE 0xc10c8496 /*address of kmem_cache_create*/
+#define KMEM_CACHE_ALLOC 0xc10c78e5 /*address of kmem_cache_alloc*/
+#define KMEM_CACHE_FREE	0xc10c73bf  /*address of kmem_cache_free*/
+//#define SCHED_ADDR 0xc12c17cf  /*address of schedule function*/
 #define STACK_SIZE	0x2000	/*kernel stack size*/
-#define ESP_SWITCH_PONIT	0xc12c1cb3	/*esp switching point*/
+//#define ESP_SWITCH_PONIT	0xc12c1cb3	/*esp switching point*/
 #define KERNEL_ADDR_MIN		0xc0000000	/*min address of kernel space*/
-#define KFREE	0xc10c2791	/*kfree*/
+#define KFREE	0xc10c7e52	/*kfree*/
 #define KERNEL_ESP	0xdfbf2800-0x217c 	/*the address of esp field of TSS*/
-#define ____CACHE_ALLOC_START 0xc10c22fe /*start address for ____cache_alloc*/
-#define ____CACHE_ALLOC_END 0xc10c26e9 /*start address for ____cache_alloc*/
-#define TRACE_KMALLOC 0xc10c1c2c /*start address for trace_kmalloc*/
-#define __KMALLOC 0xc10c2909 /*start address for __kmalloc*/
-#define __KMALLOC_TRACK_CALLER 0xc10c30fb /*start address for __kmalloc_track_caller*/
+//#define ____CACHE_ALLOC_START 0xc10c798b /*start address for ____cache_alloc*/
+//#define ____CACHE_ALLOC_END 0xc10c7d9f /*start address for ____cache_alloc*/
+#define TRACE_KMALLOC 0xc10c7266 /*start address for trace_kmalloc*/
+#define __KMALLOC 0xc10c7fde /*start address for __kmalloc*/
+#define __KMALLOC_TRACK_CALLER 0xc10c87f6 /*start address for __kmalloc_track_caller*/
 #define KMEM_CACHE_ALLOC_TRACE 0x0
+#define FUNCTION_INTERFACE "objs-3.2.58/signature_3.2.58.s"
+#define TYPE_64 "objs-3.2.58/type64_3.2.58.s"
+
+#define TIME_INTERRUPT ret_addr == 0xc12d7c59
+#define COMMON_INTERRUPT ret_addr == 0xc12dc170
+#define COMMON_EXCEPTION ret_addr == 0xc12d7e87
+#define HARD_CODE_SCHED1 pc >= 0xc12d5ed6 && pc <= 0xc12d5ef8
+#define HARD_CODE_SCHED2 ret_addr >= 0xc12d5ed6 && ret_addr <= 0xc12d5ef8
+
+
 #endif
 
 
@@ -104,10 +117,10 @@
 
 
 //#define TRACE_SYSCALL_OBJ
-#define NOSCHEDULE
+//#define NOSCHEDULE
 //#define MYCPUID
 #define CALLSTACK
 //#define INFER_SIZE
-#define RECORD_MEM_ACCESS
+//#define RECORD_MEM_ACCESS
 //#define SEM_TYPES
 #endif
