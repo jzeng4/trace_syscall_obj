@@ -80,8 +80,8 @@
 #define KERNEL_ESP	0xdfbf2800-0x217c 	/*the address of esp field of TSS*/
 //#define ____CACHE_ALLOC_START 0xc10c798b /*start address for ____cache_alloc*/
 //#define ____CACHE_ALLOC_END 0xc10c7d9f /*start address for ____cache_alloc*/
-#define TRACE_KMALLOC 0xc10c7266 /*start address for trace_kmalloc*/
-#define __KMALLOC 0xc10c7fde /*start address for __kmalloc*/
+#define TRACE_KMALLOC 0x0 /*start address for trace_kmalloc*/
+#define __KMALLOC 0x0 /*start address for __kmalloc*/
 #define __KMALLOC_TRACK_CALLER 0xc10c87f6 /*start address for __kmalloc_track_caller*/
 #define KMEM_CACHE_ALLOC_TRACE 0x0
 #define FUNCTION_INTERFACE "objs-3.2.58/signature_3.2.58.s"
@@ -121,6 +121,6 @@
 //#define MYCPUID
 #define CALLSTACK
 //#define INFER_SIZE
-//#define RECORD_MEM_ACCESS
+#define RECORD_MEM_ACCESS
 //#define SEM_TYPES
 #endif

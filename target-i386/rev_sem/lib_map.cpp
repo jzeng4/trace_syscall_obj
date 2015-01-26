@@ -501,6 +501,8 @@ struct info {
 
 extern uint32_t g_pc;
 FILE *output_database;
+static FILE *output_file1;
+static FILE *output_file2;
 
 
 void cur_dump_rets(FILE *file, unsigned int pc)
@@ -1037,7 +1039,9 @@ void dump_database(void)
 void open_database(void)
 {
 	output_database = fopen("database", "w");
-	if(!output_database) {
+	output_file1 = fopen("/home/junyuan/Desktop/dump_func.s", "w");
+	output_file2 = fopen("/home/junyuan/Desktop/dump_callstack.s", "w");
+	if(!output_database && !output_file1 && !output_file2) {
 		fprintf(stderr, "error in open database\n");
 		exit(0);
 	}
@@ -1356,8 +1360,6 @@ struct ESP {
 unordered_map<unsigned int, struct Instance > g_instances;
 unordered_map<size_t, string> g_access_callstack;
 unordered_map<unsigned int, stack<struct ESP> > g_interrupt_esp;
-static FILE *output_file1;
-static FILE *output_file2;
 
 
 void cur_dump_callstack_pc(FILE *file, unsigned int pc)
@@ -1382,13 +1384,9 @@ void set_info_proc(uint32_t addr)
 void add_instance(size_t type, unsigned int addr)
 {
 	if(g_instances.count(addr)) {
-		fprintf(stderr, "old:%llx\tnew:%llx\n", g_instances[addr].type, type);
+		fprintf(stderr, "addr:%x\told:%llx\tnew:%llx\n", 
+				addr, g_instances[addr].type, type);
 		//assert(0);
-	}
-	
-	if(!output_file1) {
-		output_file1 = fopen("/home/junyuan/Desktop/dump_func.s", "w");
-		output_file2 = fopen("/home/junyuan/Desktop/dump_callstack.s", "w");
 	}
 
 	g_instances[addr].type = type;

@@ -420,7 +420,8 @@ void get_trace_kmalloc_args(uint32_t *addr, uint32_t *size)
 #endif
 
 #ifdef LINUX_3_2_58_NO_TRACE
-	*addr = PEMU_get_reg(XED_REG_ESI);
+	*addr = PEMU_get_reg(XED_REG_EAX);
+	printf("eax:%x\n", *addr);
 	*size = PEMU_get_reg(XED_REG_ECX);
 #endif
 
