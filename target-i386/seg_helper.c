@@ -1180,7 +1180,7 @@ static void do_interrupt_all(X86CPU *cpu, int intno, int is_int,
 		}
 	}
 #endif
-#ifdef RECORD_MEM_ACCESS 
+#ifdef TRACE_OBJ 
 	if(intno != 0x80) {
 		uint32_t esp = get_kernel_esp(XED_REG_ESP) ;
 		add_interrupt_esp(esp & 0xffffe000, esp, intno);
@@ -2301,7 +2301,7 @@ void helper_iret_protected(CPUX86State *env, int shift, int next_eip)
 		}
 	}
 #endif
-#ifdef RECORD_MEM_ACCESS
+#ifdef TRACE_OBJ
 	uint32_t esp = get_kernel_esp() & 0xffffe000;
 	delete_interrupt_esp(esp);
 #endif

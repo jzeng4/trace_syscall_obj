@@ -64,7 +64,6 @@ static map<unsigned int, int> g_all_obj;
 static map<unsigned int, size_t> g_obj_pool;
 static map<unsigned int, string> g_heap_types;
 static map<string, unsigned int> g_heap_types_s;
-static map<unsigned int, unsigned int> g_come_from;
 static map<unsigned int, string> g_syscall;
 static map<unsigned int, int> g_proc_intr;
 static map<unsigned, vector<unsigned int> > g_all_callstacks;
@@ -355,90 +354,10 @@ void dump_rets1(FILE *file, unsigned int pc)
 
 void clear_calldata(void)
 {
-	//g_callsite.clear();
-	//g_callstack.clear();
-	
 	while(!g_ret_stack.empty())
     	g_ret_stack.clear();
 }
 
-
-void ds_code_load_heapTypes(void)
-{
-#if 0
-
-#ifdef LINUX_2_6_32_8
-	FILE *file = fopen("kmem_cache_linux.log", "r");
-#endif
-#ifdef FREEBSD
-	FILE *file = fopen("kmem_cache_freebsd.log", "r");
-#endif
-
-	if(!file){
-		fprintf(stderr, "error:\tcan't find kmem_cache_linux.log\n");
-		return;
-		exit(0);
-	}
-
-
-	char type[50];
-	int num;
-#ifdef FREEBSD
-	char line[500];
-	while(fgets(line, 500, file)){
-		strcpy(type, strtok(line, "\t"));
-		sscanf(strtok(NULL, "\t"), "%x", &num);
-		if(g_heap_types.count(num-1)){
-			//fprintf(stderr, "duplicate\t%x\n", type);
-		}
-		g_heap_types[num-1] = string(type);
-		g_heap_types_s[type] = num-1;
-		fprintf(stdout, "load\t%s\t%x\n", type, num);
-	}
-#else
-	while(fscanf(file, "%s\t%x\n", type, &num) != EOF){
-		if(g_heap_types.count(num-1)){
-			fprintf(stderr, "duplicate\t%x\n", type);
-		}
-		g_heap_types[num-1] = type;
-		g_heap_types_s[type] = num-1;
-		fprintf(stdout, "load\t%s\t%x\n", type, num);
-	}
-
-#endif
-
-	for(map<string, unsigned int>::iterator it = g_heap_types_s.begin();
-			it != g_heap_types_s.end(); it++){
-		//fprintf(stderr, "print\t%s\t%x\n", it->first.c_str(), it->second);
-	}
-#endif
-}
-
-#if 0
-void insert_reference(unsigned int parent, unsigned child) {
-	if(parent == child) {
-		printf("Circle?\n");
-		return;
-	}
-	printf("parent:%x child:%x\n", parent, child);
-	g_come_from[child] = parent;
-}
-
-void taint_parent(unsigned int addr, unsigned taint) {
-	for (map<unsigned int, unsigned int>::iterator it = g_come_from.begin();
-			it != g_come_from.end(); it++) {
-		printf("parent:%x child:%x\n", it->second, it->first);
-	}
-	while (g_come_from.count(addr) > 0) {
-		printf("taint addr:%x taint:%x\n", addr, taint);
-		set_mem_taint_bysize2(addr, taint, 4);
-		addr = g_come_from[addr];
-	}
-	printf("taint addr:%x taint:%x\n", addr, taint);
-	set_mem_taint_bysize2(addr, taint, 4);
-	printf("finish taint_parent\n");
-}
-#endif
 
 FILE *PEMU_open(int syscall, int index)
 {
@@ -503,6 +422,7 @@ extern uint32_t g_pc;
 FILE *output_database;
 static FILE *output_file1;
 static FILE *output_file2;
+static FILE *output_file3;
 
 
 void cur_dump_rets(FILE *file, unsigned int pc)
@@ -839,6 +759,7 @@ struct DataIntem
 	char name[50];
 	void *callstack;
 	void *types;
+	unordered_set<string> *pset;
 };
 
 map<int, unordered_set<size_t> > sys_read;
@@ -855,6 +776,9 @@ map<size_t, map<int, unordered_set<string> > > write_off_type;
 map<size_t, map<int, string> > first_write_off_type;
 
 map<size_t, int> vmalloc_database;
+
+static unordered_set<unsigned int> g_dest;
+static unordered_map<unsigned int, unordered_set<string> > g_point_to;
 
 void save_vmalloc(size_t type)
 {
@@ -913,6 +837,7 @@ void set_createSys(int sysnum, size_t obj, struct DataIntem data)
 		data.types = new map<unsigned int, unordered_set<string> >();
 		data.callstack = new string(get_cur_callstack_str(g_pc));
 		database[obj] = data;
+		database[obj].pset = new unordered_set<string>();
 	}
 }
 
@@ -928,27 +853,6 @@ void set_deleteSys(int sysnum, NodeType *tmp)
 	}
 }
 
-
-void set_dump_one(char *fname, map<int, unordered_set<size_t> >& sys)
-{
-	FILE *file = fopen(fname, "w");
-	
-	if(!file) {
-		fprintf(stderr, "error in open %s\n", fname);
-		exit(0);
-	}
-	for(map<int, unordered_set<size_t> >::iterator it = sys.begin();
-			it != sys.end(); it++) {
-			fprintf(file, "%d_%s:", 
-					it->first, g_syscall[it->first].c_str());
-		for(auto it2 = it->second.begin();
-				it2 != it->second.end(); it2++) {
-			fprintf(file, " %lx", *it2);
-		}
-		fprintf(file, "\n");
-	}
-	fclose(file);
-}
 
 void dump_loc_off(char *fname, map<size_t, unordered_set<string> > &loc_off)
 {
@@ -1040,7 +944,8 @@ void open_database(void)
 {
 	output_database = fopen("database", "w");
 	output_file1 = fopen("/home/junyuan/Desktop/dump_func.s", "w");
-	output_file2 = fopen("/home/junyuan/Desktop/dump_callstack.s", "w");
+	output_file2 = fopen("/home/junyuan/Desktop/dump_callstack_r.s", "w");
+	output_file3 = fopen("/home/junyuan/Desktop/dump_callstack_w.s", "w");
 	if(!output_database && !output_file1 && !output_file2) {
 		fprintf(stderr, "error in open database\n");
 		exit(0);
@@ -1089,63 +994,64 @@ void dump_objs_types(char *fname)
 	fclose(file);
 }
 
-#if 0
-FILE *modules;
-void load_modules(void)
-{
-	modules = fopen("modules", "r");
-	if(modules != NULL) {
-		/**/
-		fclose(modules);
-	}
-}
-#endif
-
-#if 0
-map<string,int> names;
-void record_name(char *name)
-{
-	string t(name);
-	names[t] = 1;
-}
-
-void dump_names(char *fname, map<string,int> &names)
+void dump_type_rw(char *fname)
 {
 	FILE *file = fopen(fname, "w");
-	
 	if(!file) {
 		fprintf(stderr, "error in open %s\n", fname);
 		exit(0);
 	}
-	for(map<string, int >::iterator it = names.begin();
-			it != names.end(); it++) {
-		fprintf(file, "%s\n", it->first.c_str());
+	for(map<size_t, struct DataIntem >::iterator it = database.begin(); it != database.end();
+			it++) {
+		fprintf(file, "%llx", it->first);
+		for(unordered_set<string>::iterator it2 = it->second.pset->begin();it2 != it->second.pset->end();it2++) {
+			fprintf(file, " %s", (*it2).c_str());
+		}
+		fprintf(file, "\n");
 	}
 	fclose(file);
 }
-#endif
+
+void dump_called_func(char *fname)
+{
+	FILE *file = fopen(fname, "w");
+	if(!file) {
+		fprintf(stderr, "error in open %s\n", fname);
+		exit(0);
+	}
+
+	for(unordered_set<unsigned int>::iterator it = g_dest.begin();
+			it != g_dest.end();it++) {
+		fprintf(file, "%x\n", *it);
+	}
+	fclose(file);
+}
+
+void dump_point_to(char *fname)
+{
+	FILE *file = fopen(fname, "w");
+	if(!file) {
+		fprintf(stderr, "error in open %s\n", fname);
+		exit(0);
+	}
+
+	for(unordered_map<unsigned int, unordered_set<string> >::iterator it = g_point_to.begin();
+			it != g_point_to.end();it++) {
+		for(unordered_set<string>::iterator it2 = it->second.begin();
+				it2 != it->second.end(); it2++) {
+			fprintf(file, "%s\n", (*it2).c_str());
+		}
+	}
+	fclose(file);
+}
 
 void set_dump(void)
 {
-#if 0
-	set_dump_one("sys_read", sys_read);
-	set_dump_one("sys_write", sys_write);
-	set_dump_one("sys_create", sys_create);
-	set_dump_one("sys_delete", sys_delete);
-	dump_type_off("read_off_type", read_off_type);
-	dump_type_off("write_off_type", write_off_type);
-	dump_first_type_off("first_write_off_type", first_write_off_type);
-	//dump_loc_off("read_loc_off", read_loc_off);
-	//dump_loc_off("write_loc_off", write_loc_off);
-	dump_loc_off("delete_loc_off", delete_loc_off);
-	dump_hash_callstack("read_hash_callstack", read_hash_callstack);
-	dump_hash_callstack("write_hash_callstack", write_hash_callstack);
-	dump_hash_callstack("delete_hash_callstack", delete_hash_callstack);
-	dump_database();
-	//dump_names("names.s", names);
-#endif
 	dump_rewards_types("rewards_types");
 	dump_objs_types("all_objs_type");
+	dump_type_rw("/home/junyuan/Desktop/dump_func1.s");
+	dump_called_func("/home/junyuan/Desktop/dump_called_func.s");
+	dump_point_to("/home/junyuan/Desktop/dump_point_to.s");
 }
 
 //begin (for code diff)
@@ -1241,23 +1147,6 @@ void load_function_interface(void)
 		g_func_interface[addr] = func;
 	}
 	fclose(file);
-#if 0
-	int max_t = 0;
-	string name;
-	for(map<unsigned int, struct Func*>::iterator it = g_func_interface.begin();
-			it != g_func_interface.end(); it++) {
-		cout<<hex<<it->first<<" "<<it->second->num<<" "<<it->second->name<<endl;
-		for(int i = 0;i < it->second->args.size();i++) {
-			cout<<" "<<it->second->args[i].size<<" "<<it->second->args[i].type;
-		}
-		if(max_t < it->second->num) {
-			max_t = it->second->num;
-			name = it->second->name;
-		}
-		cout<<endl;
-	}
-	cout<<max_t<<" "<<name<<endl;
-#endif
 }
 
 int get_parameter(unsigned int *paras, struct Func* func)
@@ -1320,26 +1209,7 @@ int recover_sem_types(unsigned int target_pc)
 }
 
 
-//action: 0-create, 1-read, 2-write, 3-delete;
-#include <time.h>
-#if 0
-uint64_t PEMU_read_timer(void);
-void instance_action_print(unsigned int instance, unsigned int off, unsigned int func, int action)
-{
-	struct timeval t;
-	static FILE *file;
-	if(!file) {
-		file = fopen("/home/junyuan/Desktop/dump.s", "w");
-	}
-//	if((gettimeofday(&t, NULL)) != -1) {
-		fprintf(file, "%x\t%x\t%x\t%x\n", \
-				instance, off, func, action);
-//	} else {
-//		assert(0);
-//	}
 
-}
-#endif
 
 
 
@@ -1400,7 +1270,7 @@ void delete_instance(unsigned int addr)//, int flag)
 	//if(!g_instances.count(addr)) {
 	//	assert(0);
 	//}
-
+#ifdef RECORD_INSTANCE_ACCESS 
 	fprintf(output_file1, "%llx\t", g_instances[addr].type);
 	for(unordered_set<string>::iterator it2 = g_instances[addr].pset->begin();
 			it2 != g_instances[addr].pset->end();
@@ -1408,6 +1278,7 @@ void delete_instance(unsigned int addr)//, int flag)
 		fprintf(output_file1, "%s\t", it2->c_str());
 	}
 	fprintf(output_file1, "\n");
+#endif
 	if(g_instances.count(addr)) {
 		delete(g_instances[addr].pset);
 		g_instances.erase(addr);
@@ -1501,9 +1372,11 @@ string get_callstack_ebp(uint32_t pc)
 
 void add_read_action(unsigned int addr, unsigned int size, unsigned int off, unsigned int func, unsigned int action)
 {
+#if 0
 	if(!g_instances.count(addr)) {
 		assert(0);
 	}
+#endif
 
 	string cs = get_callstack_ebp(g_pc);
 	hash<std::string> hash_fn;
@@ -1512,36 +1385,50 @@ void add_read_action(unsigned int addr, unsigned int size, unsigned int off, uns
 		g_access_callstack[hash] = cs;
 		fprintf(output_file2, "%llx:%s\n", hash, cs.c_str());
 	}
-
+#if 0
 	stringstream ss;
 	//ss <<hex<<func<<" "<<hex<<off<<" "<<action;
-	ss <<hex<<hash<<":"<<get_mem_taint2(addr+off)<<":"<<hex<<func<<hex<<off;
+	ss <<hex<<hash<<":"<<get_mem_taint2(addr+off)<<":"<<hex<<func<<":"<<hex<<off;
 	//set_mem_taint_bysize2(addr, 1, 1);
 	string s = ss.str();
+#ifdef RECORD_INSTANCE_ACCESS
 	g_instances[addr].pset->insert(s);
+#endif
+#ifdef RECORD_TYPE_ACCESS
+	database[g_instances[addr].type].pset->insert(s);
+#endif
+#endif
 }
 
 
 void add_write_action(unsigned int addr, unsigned int size, unsigned int off, unsigned int func, unsigned int action)
 {
+#if 0
 	if(!g_instances.count(addr)) {
 		assert(0);
 	}
+#endif
 
 	string cs = get_callstack_ebp(g_pc);
 	hash<std::string> hash_fn;
 	size_t hash = hash_fn(cs);
 	if(!g_access_callstack.count(hash)) {
 		g_access_callstack[hash] = cs;
-		fprintf(output_file2, "%llx:%s\n", hash, cs.c_str());
+		fprintf(output_file3, "%llx:%s\n", hash, cs.c_str());
 	}
-
+#if 0
 	stringstream ss;
 	//ss <<hex<<func<<" "<<hex<<off<<" "<<action;
-	ss <<hex<<hash<<":"<<get_mem_taint2(addr+off)<<":"<<hex<<func<<hex<<off;
+	ss <<hex<<hash<<":"<<get_mem_taint2(addr+off)<<":"<<hex<<func<<":"<<hex<<off;
 	set_mem_taint_bysize2(addr+off, 1, size);
 	string s = ss.str();
+#ifdef RECORD_INSTANCE_ACCESS
 	g_instances[addr].pset->insert(s);
+#endif
+#ifdef RECORD_TYPE_ACCESS
+	database[g_instances[addr].type].pset->insert(s);
+#endif
+#endif
 }
 
 
@@ -1576,6 +1463,21 @@ void delete_interrupt_esp(unsigned int esp_key)
 	}
 }	
 
+
+
+void add_pointTo(unsigned int pc, size_t src, size_t dst)
+{
+	stringstream ss;
+	ss <<hex<<pc<<":"<<hex<<src<<"->"<<hex<<dst;
+	string s = ss.str();
+	g_point_to[pc].insert(s);
+}
+
+
+void add_call_dst(unsigned int pc)
+{
+	g_dest.insert(pc);
+}
 
 void check_if_success(void)
 {

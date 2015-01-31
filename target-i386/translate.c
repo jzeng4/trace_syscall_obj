@@ -595,6 +595,12 @@ static inline void gen_op_lds_T0_A0(int idx)
 		gen_helper_load(cpu_A0, tcg_const_i32(idx & 3 + 1));
 	}
 #endif
+
+#ifdef RECORD_TRAVERSE
+	if(g_disas_pc >= 0xc0000000) {
+		gen_helper_load1(cpu_A0, tcg_const_i32(idx & 3 + 1));
+	}
+#endif
 //end
     int mem_index = (idx >> 2) - 1;
     switch(idx & 3) {
@@ -617,6 +623,12 @@ static inline void gen_op_ld_v(int idx, TCGv t0, TCGv a0)
 #ifdef RECORD_MEM_ACCESS
 	if(g_disas_pc >= 0xc0000000) {
 		gen_helper_load(a0, tcg_const_i32(idx & 3 + 1));
+	}
+#endif
+
+#ifdef RECORD_TRAVERSE
+	if(g_disas_pc >= 0xc0000000) {
+		gen_helper_load1(a0, tcg_const_i32(idx & 3 + 1));
 	}
 #endif
 //end
@@ -4701,21 +4713,6 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     target_ulong next_eip, tval;
     int rex_w, rex_r;
 //jzeng
-#if 0
-	if(pemu_exec_stats.PEMU_start 
-			&& pemu_exec_stats.PEMU_cr3 == PEMU_get_cr3()
-			//&& pemu_exec_stats.PEMU_start_trace_syscall == 1 
-			//&& pemu_exec_stats.PEMU_int_level == 0
-			&& pc_start > 0xc0000000
-			) {
-		PEMU_read_mem(pc_start, 15, pemu_inst.PEMU_inst_buf);
-		disas_one_inst_ex(pc_start, &pemu_inst);
-		if(xed_decoded_inst_get_iclass(&pemu_inst.PEMU_xedd_g) == XED_ICLASS_CALL_NEAR) {
-			gen_helper_callstack_call(tcg_const_i32(pc_start));
-		}
-		gen_helper_callstack_ret(tcg_const_i32(pc_start));
-	}
-#endif
 	g_disas_pc = pc_start;
 	gen_helper_hook(tcg_const_i32(pc_start));
 //end
@@ -5258,6 +5255,11 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
 #ifdef SEM_TYPES
 			//jzeng
 			gen_helper_call_handler(tcg_const_i32(g_disas_pc));
+			//end
+#endif
+#ifdef RECORD_CALL_FUNC
+			//jzeng
+			gen_helper_call_handler1(tcg_const_i32(g_disas_pc));
 			//end
 #endif
 			if (s->dflag == 0)
@@ -6866,6 +6868,12 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
 #ifdef SEM_TYPES
 			//jzeng
 			gen_helper_call_handler(tcg_const_i32(g_disas_pc));
+			//end
+#endif
+
+#ifdef RECORD_CALL_FUNC
+			//jzeng
+			gen_helper_call_handler1(tcg_const_i32(g_disas_pc));
 			//end
 #endif
             if (s->dflag == 0)

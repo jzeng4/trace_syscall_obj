@@ -1,4 +1,5 @@
 #include "disas.h"
+#include "heap_shadow.h"
 //#include "../hashTable.h"
 
 
@@ -295,6 +296,35 @@ int disas_is_call(target_ulong pc)
 void helper_call_handler(target_ulong pc)
 {
 	//printf("%x %x\n", pc, Instrument_CALL_NEAR(pc));
-	recover_sem_types(Instrument_CALL_NEAR(pc));
+	if(pc > 0xc0000000) {
+		recover_sem_types(Instrument_CALL_NEAR(pc));
+	}
 }
 
+
+void helper_call_handler1(target_ulong pc)
+{
+	if(pc > 0xc0000000) {
+		add_call_dst(Instrument_CALL_NEAR(pc));
+	}
+}
+
+
+extern unsigned int g_pc;
+void helper_load1(target_ulong src, int size)
+{
+	{
+		NodeType *s, *d;
+
+		if(src < 0xc0000000 || size != 4) {
+			return;
+		}
+
+		target_ulong dst;
+		PEMU_read_mem(src, 4, &dst);
+		if((s = ds_code_rbtFind2(src))
+				&& (d = ds_code_rbtFind2(dst))) {
+			add_pointTo(g_pc, s->type, d->type);
+		}
+	}
+}

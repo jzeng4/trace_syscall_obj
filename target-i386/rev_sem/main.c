@@ -56,14 +56,6 @@ void object_hook(int pc_start)
 {
 	uint32_t objsize, ret_addr, type, addr;
 	char name[50];
-#if 0
-	//for vmalloc
-	if(pc_start == 0xc10b81b7) {
-		printf("in 0xc10b81b7\n");
-		save_vmalloc(hash_callstack(pc_start));
-	}
-	return;
-#endif
 
 	if(get_obj(pc_start)) {
 		get_name(pc_start, name);
@@ -117,7 +109,6 @@ void trace_delete(unsigned int pc_start)
 		addr = PEMU_get_reg(XED_REG_EAX);
 #ifdef RECORD_MEM_ACCESS
 		if((p = ds_code_rbtFind2(addr)) != NULL) {
-			//instance_action_print(addr, 0, g_pc, 3);
 			delete_instance(addr);
 		}
 #endif
@@ -174,6 +165,14 @@ void helper_store(target_ulong value, target_ulong addr, int size)
 		if(tmp = ds_code_rbtFind2(addr)) {
 			add_write_action(tmp->key, size, addr-tmp->key, g_pc, 2);
 		}
+
+#ifdef RECORD_GLOBAL
+		//trace access global
+		if(addr >= GLOBAL_MIN && addr <= GLOBAL_MAX
+				|| addr >= RO_MIN && addr <= RO_MAX) {
+			add_write_action(0, 0, 0, g_pc, 2);
+		}
+#endif
 	}
 }
 
@@ -196,6 +195,14 @@ void helper_load(target_ulong addr, int size)
 		if(tmp = ds_code_rbtFind2(addr)) {
 			add_read_action(tmp->key, size, addr-tmp->key, g_pc, 1);
 		}
+
+#ifdef RECORD_GLOBAL
+		//trace access global
+		if(addr >= GLOBAL_MIN && addr <= GLOBAL_MAX
+				|| addr >= RO_MIN && addr <= RO_MAX) {
+			add_read_action(0, 0, 0, g_pc, 1);
+		}
+#endif
 	}
 }
 
@@ -421,11 +428,13 @@ void helper_hook(int pc_start)
 	return 0;
 #endif
 
+#ifdef TRACE_OBJ
 	if(pc_start < KERNEL_ADDR_MIN)
 		return;
 	g_pc = pc_start;
 	trace_delete(pc_start);
 	object_hook(pc_start);
+#endif
 }
 
 
