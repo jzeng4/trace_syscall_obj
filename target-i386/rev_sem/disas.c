@@ -324,7 +324,7 @@ void helper_load1(target_ulong src, int size)
 		PEMU_read_mem(src, 4, &dst);
 		if((s = ds_code_rbtFind2(src))
 				&& (d = ds_code_rbtFind2(dst))) {
-			add_pointTo(g_pc, s->type, d->type);
+			add_pointTo(g_pc, s->type, src-s->key, d->type, dst-d->key);
 		}
 	}
 }

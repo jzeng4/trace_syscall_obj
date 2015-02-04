@@ -423,6 +423,7 @@ FILE *output_database;
 static FILE *output_file1;
 static FILE *output_file2;
 static FILE *output_file3;
+static FILE *output_file4;
 
 
 void cur_dump_rets(FILE *file, unsigned int pc)
@@ -946,7 +947,8 @@ void open_database(void)
 	output_file1 = fopen("/home/junyuan/Desktop/dump_func.s", "w");
 	output_file2 = fopen("/home/junyuan/Desktop/dump_callstack_r.s", "w");
 	output_file3 = fopen("/home/junyuan/Desktop/dump_callstack_w.s", "w");
-	if(!output_database && !output_file1 && !output_file2) {
+	output_file4 = fopen("/home/junyuan/Desktop/dump_callstack_d.s", "w");
+	if(!output_database && !output_file1 && !output_file2 && !output_file4) {
 		fprintf(stderr, "error in open database\n");
 		exit(0);
 	}
@@ -1229,6 +1231,7 @@ struct ESP {
 
 unordered_map<unsigned int, struct Instance > g_instances;
 unordered_map<size_t, string> g_access_callstack;
+unordered_map<size_t, string> g_delete_callstack;
 unordered_map<unsigned int, stack<struct ESP> > g_interrupt_esp;
 
 
@@ -1282,6 +1285,14 @@ void delete_instance(unsigned int addr)//, int flag)
 	if(g_instances.count(addr)) {
 		delete(g_instances[addr].pset);
 		g_instances.erase(addr);
+	}
+	
+	string cs = get_callstack_ebp(g_pc);
+	hash<std::string> hash_fn;
+	size_t hash = hash_fn(cs);
+	if(!g_delete_callstack.count(hash)) {
+		g_delete_callstack[hash] = cs;
+		fprintf(output_file4, "%llx:%s\n", hash, cs.c_str());
 	}
 }
 
@@ -1372,11 +1383,11 @@ string get_callstack_ebp(uint32_t pc)
 
 void add_read_action(unsigned int addr, unsigned int size, unsigned int off, unsigned int func, unsigned int action)
 {
-#if 0
+//#if 0
 	if(!g_instances.count(addr)) {
 		assert(0);
 	}
-#endif
+//#endif
 
 	string cs = get_callstack_ebp(g_pc);
 	hash<std::string> hash_fn;
@@ -1385,7 +1396,7 @@ void add_read_action(unsigned int addr, unsigned int size, unsigned int off, uns
 		g_access_callstack[hash] = cs;
 		fprintf(output_file2, "%llx:%s\n", hash, cs.c_str());
 	}
-#if 0
+//#if 0
 	stringstream ss;
 	//ss <<hex<<func<<" "<<hex<<off<<" "<<action;
 	ss <<hex<<hash<<":"<<get_mem_taint2(addr+off)<<":"<<hex<<func<<":"<<hex<<off;
@@ -1397,17 +1408,17 @@ void add_read_action(unsigned int addr, unsigned int size, unsigned int off, uns
 #ifdef RECORD_TYPE_ACCESS
 	database[g_instances[addr].type].pset->insert(s);
 #endif
-#endif
+//#endif
 }
 
 
 void add_write_action(unsigned int addr, unsigned int size, unsigned int off, unsigned int func, unsigned int action)
 {
-#if 0
+//#if 0
 	if(!g_instances.count(addr)) {
 		assert(0);
 	}
-#endif
+//#endif
 
 	string cs = get_callstack_ebp(g_pc);
 	hash<std::string> hash_fn;
@@ -1416,7 +1427,7 @@ void add_write_action(unsigned int addr, unsigned int size, unsigned int off, un
 		g_access_callstack[hash] = cs;
 		fprintf(output_file3, "%llx:%s\n", hash, cs.c_str());
 	}
-#if 0
+//#if 0
 	stringstream ss;
 	//ss <<hex<<func<<" "<<hex<<off<<" "<<action;
 	ss <<hex<<hash<<":"<<get_mem_taint2(addr+off)<<":"<<hex<<func<<":"<<hex<<off;
@@ -1428,7 +1439,7 @@ void add_write_action(unsigned int addr, unsigned int size, unsigned int off, un
 #ifdef RECORD_TYPE_ACCESS
 	database[g_instances[addr].type].pset->insert(s);
 #endif
-#endif
+//#endif
 }
 
 
@@ -1465,10 +1476,10 @@ void delete_interrupt_esp(unsigned int esp_key)
 
 
 
-void add_pointTo(unsigned int pc, size_t src, size_t dst)
+void add_pointTo(unsigned int pc, size_t src, int off1, size_t dst, int off2)
 {
 	stringstream ss;
-	ss <<hex<<pc<<":"<<hex<<src<<"->"<<hex<<dst;
+	ss <<hex<<pc<<" "<<hex<<src<<":"<<hex<<off1<<"->"<<hex<<dst<<":"<<hex<<off2;
 	string s = ss.str();
 	g_point_to[pc].insert(s);
 }

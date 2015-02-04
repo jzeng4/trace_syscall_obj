@@ -5,9 +5,9 @@
 #define TIMMER
 
 //#define LINUX_2_6_32_8
-//#define LINUX_2_6_32_8_NO_TRACE
+#define LINUX_2_6_32_8_NO_TRACE
 //#define LINUX_3_2_58
-#define LINUX_3_2_58_NO_TRACE
+//#define LINUX_3_2_58_NO_TRACE
 //#define FREEBSD_9_1
 
 
@@ -137,13 +137,13 @@
 //for access
 #define RECORD_MEM_ACCESS
 	#define RECORD_INSTANCE_ACCESS
-	//#define RECORD_TYPE_ACCESS
+	#define RECORD_TYPE_ACCESS
 
 //for rewards
 //#define SEM_TYPES
 
 //for traverse function
-//#define RECORD_TRAVERSE
-//#define RECORD_CALL_FUNC
+#define RECORD_TRAVERSE
+#define RECORD_CALL_FUNC
 //#define RECORD_GLOBAL
 #endif
