@@ -63,31 +63,32 @@ void object_hook(int pc_start)
 		add_obj(obj_addr, get_size(pc_start), name, pc_start);
 	}
 	
-	if(pc_start == KMEM_CACHE_ALLOC) {
+	if(pc_start == KMEM_CACHE_ALLOC || pc_start == KMEM_CACHE_ALLOC_TRACE) {
 		uint32_t tmp, tmp1;
-		if(is_dup_call_kmem_cache_alloc()) {//some special cases
-			return;
-		}
+//		if(is_dup_call_kmem_cache_alloc()) {//some special cases
+//			return;
+//		}
 
 		PEMU_read_mem(PEMU_get_reg(XED_REG_ESP), 4, &ret_addr);
 		get_kmem_cache_alloc_args(&objsize, name);
 		insert_obj(ret_addr, 0, objsize, name);
-	} else if(pc_start == TRACE_KMALLOC) {
-		uint32_t addr, size;
-		get_trace_kmalloc_args(&addr, &size);
+	}
+	else if(pc_start == __KMALLOC || pc_start == __KMALLOC_TRACK_CALLER) {
 		PEMU_read_mem(PEMU_get_reg(XED_REG_ESP), 4, &ret_addr);
-#ifdef LINUX_2_6_32_8_NO_TRACE //in case kmem_cache_alloc and ktrace are together
-		if(disas_is_call(ret_addr-15)) {
-			return;
-		}
-#endif
-		insert_obj(ret_addr, addr, size, "size-XX");
-	} else if(pc_start == KMEM_CACHE_FREE) {
+		get___kmalloc_args(&objsize);
+		insert_obj(ret_addr, 0, objsize, "kmalloc-XX");
+	}
+	else if(pc_start == __VMALLOC_NODE_FLAGS) {
+		PEMU_read_mem(PEMU_get_reg(XED_REG_ESP), 4, &ret_addr);
+		get_vmalloc_args(&objsize);
+		insert_obj(ret_addr, 0, objsize, "vmalloc-XX");
+	}
+	else if(pc_start == KMEM_CACHE_FREE) {
 		get_kmem_cache_free_args(&addr);		
 		ds_code_all_delete_rb(addr);
-	} else if(pc_start == KFREE){
-		uint32_t addr1 = PEMU_get_reg(XED_REG_EAX);
-		ds_code_all_delete_rb(addr1);
+	} else if(pc_start == KFREE || pc_start == VFREE) {
+		addr = PEMU_get_reg(XED_REG_EAX);
+		ds_code_all_delete_rb(addr);
 	}
 }
 
@@ -117,6 +118,7 @@ void trace_delete(unsigned int pc_start)
 
 }
 
+#if 0
 void trace_functions(int pc_start)
 {
 	unsigned int target;
@@ -145,6 +147,7 @@ void callstack_hook(int pc_start)
 		}
 	}
 }
+#endif
 
 void helper_store(target_ulong value, target_ulong addr, int size)
 {
@@ -252,6 +255,7 @@ void trace_kmem_create(int pc_start)
 #endif
 }
 
+#if 0
 void find_kstack_switch(int pc_start)
 {
 	if(pc_start > 0xc0000000)
@@ -297,6 +301,7 @@ void find_kstack_switch(int pc_start)
 
 	return;
 }
+#endif
 
 void trace_tss_esp(uint32_t pc_start)
 {
@@ -354,8 +359,8 @@ void helper_hook(int pc_start)
 	return;
 #endif
 
-
-#ifdef TRACE_SYSCALL_OBJ
+#if 0
+//#ifdef TRACE_SYSCALL_OBJ
 	enable_trace = 0;
 	
 	if(pc_start < KERNEL_ADDR_MIN)

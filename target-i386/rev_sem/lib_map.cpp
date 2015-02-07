@@ -196,28 +196,6 @@ uint32_t is_dup_call_kmem_cache_alloc(void)
 	return 0;
 }
 
-void insert_obj1(unsigned int pc, int size)
-{
-	struct Elem1 elem;
-	elem.size = size;
-	g_obj1[pc] = elem;
-}
-
-int get_obj1(unsigned int pc)
-{
-	return g_obj1.count(pc);
-}
-
-int get_size1(unsigned int pc)
-{
-	return g_obj1[pc].size;
-}
-
-void delete_obj1(unsigned int pc)
-{
-	g_obj1.erase(pc);
-}
-
 ////////////////////////////////
 void insert_obj(unsigned int pc, unsigned int addr, int size, char *name)
 {
@@ -789,35 +767,6 @@ void save_vmalloc(size_t type)
 	}
 }
 
-void set_readSys(int sysnum, unsigned int addr, NodeType *tmp)
-{
-	stringstream ss;
-	sys_read[sysnum].insert(tmp->type);
-	//ss << hex << hash_read_callstack(g_pc) << ":" << addr - tmp->key;
-	//ss << hex << g_pc << ":" << addr - tmp->key;
-	//read_loc_off[tmp->type].insert(ss.str());
-	
-	ss << hex << hash_read_callstack(g_pc) << ":" << g_pc;
-	read_off_type[tmp->type][addr-tmp->key].insert(ss.str());
-}
-
-void set_writeSys(int sysnum, unsigned int addr, NodeType *tmp)
-{
-	stringstream ss;
-	sys_write[sysnum].insert(tmp->type);
-	//ss << hex << hash_write_callstack(g_pc) << ":" << addr - tmp->key;
-	//ss << hex << g_pc << ":" << addr - tmp->key;
-	//write_loc_off[tmp->type].insert(ss.str());
-
-	ss << hex << hash_write_callstack(g_pc) << ":" << g_pc;
-	if(first_write_off_type.count(tmp->type) == 0
-			|| first_write_off_type[tmp->type].count(addr-tmp->key) == 0) {
-		first_write_off_type[tmp->type][addr-tmp->key] = ss.str();
-	}
-	write_off_type[tmp->type][addr-tmp->key].insert(ss.str());
-
-}
-
 void update_traced_size(size_t obj, int size)
 {
 	if(database.count(obj) != 0 && database[obj].size < size) {
@@ -852,83 +801,6 @@ void set_deleteSys(int sysnum, NodeType *tmp)
 			delete_loc_off[tmp->type].insert(ss.str());
 		}
 	}
-}
-
-
-void dump_loc_off(char *fname, map<size_t, unordered_set<string> > &loc_off)
-{
-	FILE *file = fopen(fname, "w");
-	
-	if(!file) {
-		fprintf(stderr, "error in open %s\n", fname);
-		exit(0);
-	}
-	for(map<size_t, unordered_set<string> >::iterator it = loc_off.begin();
-			it != loc_off.end(); it++) {
-			fprintf(file, "%lx", it->first);
-		for(auto it2 = it->second.begin();
-				it2 != it->second.end(); it2++) {
-			fprintf(file, " %s", (*it2).c_str());
-		}
-		fprintf(file, "\n");
-	}
-	fclose(file);
-}
-
-void dump_hash_callstack(char *fname, map<size_t, string > &hash_callstack)
-{
-	FILE *file = fopen(fname, "w");
-	
-	if(!file) {
-		fprintf(stderr, "error in open %s\n", fname);
-		exit(0);
-	}
-	for(map<size_t, string >::iterator it = hash_callstack.begin();
-			it != hash_callstack.end(); it++) {
-		fprintf(file, "%lx:%s\n", it->first, it->second.c_str());
-	}
-	fclose(file);
-
-}
-
-void dump_type_off(char *fname, map<size_t, map<int, unordered_set<string> > > &hash)
-{
-	FILE *file = fopen(fname, "w");
-	if(!file) {
-		fprintf(stderr, "error in open %s\n", fname);
-		exit(0);
-	}
-	for(map<size_t, map<int, unordered_set<string> > >::iterator it = hash.begin(); it != hash.end();
-			it++) {
-		fprintf(file, "%lx", (*it).first);
-		for(map<int, unordered_set<string> >::iterator it2 = (*it).second.begin(); it2 != (*it).second.end();
-				it2++) {
-			for(auto it3 = (*it2).second.begin(); it3 != (*it2).second.end(); it3++) {
-				fprintf(file, " %x:%s", (*it2).first, (*it3).c_str());
-			}
-		}
-		fprintf(file, "\n");
-	}
-	fclose(file);
-}
-
-void dump_first_type_off(char *fname, map<size_t, map<int, string> > &hash)
-{
-	FILE *file = fopen(fname, "w");
-	if(!file) {
-		fprintf(stderr, "error in open %s\n", fname);
-		exit(0);
-	}
-	for(map<size_t, map<int, string> >::iterator it = hash.begin(); it != hash.end();
-			it++) {
-		fprintf(file, "%lx", (*it).first);
-		for(map<int, string>::iterator it2 = (*it).second.begin(); it2 != (*it).second.end();
-				it2++) {
-			fprintf(file, " %x:%s", (*it2).first, (*it2).second.c_str());
-		}
-		fprintf(file, "\n");
-	}
-	fclose(file);
 }
 
 void dump_database(void)

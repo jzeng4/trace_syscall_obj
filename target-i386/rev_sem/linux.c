@@ -344,7 +344,7 @@ uint32_t get_user_esp(void)
 void get_kmem_cache_alloc_args(uint32_t *objsize, char *name)
 {
 	uint32_t tmp, tmp1;
-
+#if 0
 #ifdef FREEBSD_9_1
 	PEMU_read_mem(PEMU_get_reg(XED_REG_ESP) + 4, 4, &tmp);
 	PEMU_read_mem(tmp, 4, &tmp1);
@@ -362,6 +362,8 @@ void get_kmem_cache_alloc_args(uint32_t *objsize, char *name)
 	PEMU_read_mem(tmp + 0x54, 4, &tmp1);
 	PEMU_read_mem(tmp1, 50, name);
 #endif
+#endif
+
 
 #ifdef LINUX_2_6_32_8_NO_TRACE
 	tmp = PEMU_get_reg(XED_REG_EAX);
@@ -370,9 +372,14 @@ void get_kmem_cache_alloc_args(uint32_t *objsize, char *name)
 	PEMU_read_mem(tmp1, 50, name);
 #endif
 
-#ifdef LINUX_3_2_58
+#ifdef LINUX_3_0_58
 	assert(0);
+	tmp = PEMU_get_reg(XED_REG_EAX);
+	PEMU_read_mem(tmp + 12, 4, objsize);
+	PEMU_read_mem(tmp + 0x3c, 4, &tmp1);
+	PEMU_read_mem(tmp1, 50, name);
 #endif
+
 
 #ifdef LINUX_3_2_58_NO_TRACE
 	tmp = PEMU_get_reg(XED_REG_EAX);
@@ -388,6 +395,18 @@ void get_kmem_cache_alloc_args(uint32_t *objsize, char *name)
 	//printf("kmem_cache_alloc:%s %d\n", name, *objsize);
 }
 
+
+void get___kmalloc_args(int *size)
+{
+	*size = PEMU_get_reg(XED_REG_EAX);
+}
+
+
+void get_vmalloc_args(int *size)
+{
+	*size = PEMU_get_reg(XED_REG_EAX);
+}
+
 void get_kmem_cache_free_args(uint32_t *addr)
 {
 	uint32_t tmp;
@@ -398,10 +417,11 @@ void get_kmem_cache_free_args(uint32_t *addr)
 #endif
 }
 
-
+#if 0
 void get_trace_kmalloc_args(uint32_t *addr, uint32_t *size)
 {
 	uint32_t tmp;
+#if 0
 #ifdef FREEBSD_9_1
 	assert(0);
 #endif
@@ -409,19 +429,18 @@ void get_trace_kmalloc_args(uint32_t *addr, uint32_t *size)
 #ifdef LINUX_2_6_32_8
 	assert(0);
 #endif
+#ifdef LINUX_3_2_58
+	assert(0);
+#endif
+#endif
 
 #ifdef LINUX_2_6_32_8_NO_TRACE
 	*addr = PEMU_get_reg(XED_REG_EAX);
 	*size = PEMU_get_reg(XED_REG_EDX);
 #endif
 
-#ifdef LINUX_3_2_58
-	assert(0);
-#endif
-
 #ifdef LINUX_3_2_58_NO_TRACE
 	*addr = PEMU_get_reg(XED_REG_EAX);
-	printf("eax:%x\n", *addr);
 	*size = PEMU_get_reg(XED_REG_ECX);
 #endif
 
@@ -435,7 +454,6 @@ void get_kcreate_args(uint32_t *objsize, char *name)
 {
 	
 }
-
 
 extern FILE *output_file;
 FILE *PEMU_open(int , int);
@@ -468,3 +486,4 @@ void uninit_syscall_trace(void)
 	print_call_relation();
 //	clear_calldata();
 }
+#endif
