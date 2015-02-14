@@ -63,7 +63,7 @@ void object_hook(int pc_start)
 		add_obj(obj_addr, get_size(pc_start), name, pc_start);
 	}
 	
-	if(pc_start == KMEM_CACHE_ALLOC || pc_start == KMEM_CACHE_ALLOC_TRACE) {
+	if(pc_start == KMEM_CACHE_ALLOC) {
 		uint32_t tmp, tmp1;
 //		if(is_dup_call_kmem_cache_alloc()) {//some special cases
 //			return;
@@ -71,6 +71,12 @@ void object_hook(int pc_start)
 
 		PEMU_read_mem(PEMU_get_reg(XED_REG_ESP), 4, &ret_addr);
 		get_kmem_cache_alloc_args(&objsize, name);
+		insert_obj(ret_addr, 0, objsize, name);
+	}
+	else if(pc_start == KMEM_CACHE_ALLOC_TRACE) {
+		uint32_t tmp, tmp1;	
+		PEMU_read_mem(PEMU_get_reg(XED_REG_ESP), 4, &ret_addr);
+		get_kmem_cache_alloc_trace_args(&objsize, name);
 		insert_obj(ret_addr, 0, objsize, name);
 	}
 	else if(pc_start == __KMALLOC || pc_start == __KMALLOC_TRACK_CALLER) {
@@ -211,7 +217,7 @@ void helper_load(target_ulong addr, int size)
 
 void trace_kmem_create(int pc_start)
 {
-#if 1 //for linux
+#if 0 //for linux
 	static uint32_t size = 0;	
 	if(get_kmem_obj(pc_start)){
 		char name[100];
@@ -230,7 +236,6 @@ void trace_kmem_create(int pc_start)
 		PEMU_read_mem(PEMU_get_reg(XED_REG_ESP), 4, &ret_addr);
 		insert_kmem_obj(ret_addr, name);
 	}
-#else
 	//freebsd
 	static uint32_t size = 0;	
 	if(get_kmem_obj(pc_start)){
@@ -313,19 +318,31 @@ void trace_tss_esp(uint32_t pc_start)
 	if(pc_start == 0xc12dbb5c) {
 		printf("esp:%x\n", PEMU_get_reg(XED_REG_ESP));
 	}
+	if(pc_start == 0xc12b08dc) {
+		printf("esp:%x\n", PEMU_get_reg(XED_REG_ESP));
+	}
 
 }
 
 void helper_hook(int pc_start)
 {
-
 #if 0
-	if(pc_start == KMEM_CACHE_ALLOC) {
-		uint32_t tmp;
+//#if 0
+	if(pc_start == KMEM_CACHE_ALLOC_TRACE) {
 		char name[100];
-		get_kmem_cache_alloc_args(&tmp, name);
-		record_name(name);
+		int size;
+		get_kmem_cache_alloc_trace_args(&size, name);
+		//record_name(name);
+		printf("%s %x\n", name, size);
 	}
+//#endif
+#if 0
+	if(pc_start == __KMALLOC_TRACK_CALLER) {
+		int size;
+		get___kmalloc_args(&size);
+		printf("%d\n", size);
+	}
+#endif
 	return;
 #endif
 

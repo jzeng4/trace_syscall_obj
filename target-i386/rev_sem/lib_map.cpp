@@ -118,7 +118,7 @@ size_t hash_callstack(uint32_t pc)
 	//return hash_callstack_ebp(pc);
 #endif
 }
-
+#if 0
 size_t hash_read_callstack(uint32_t pc)
 {
 	hash<std::string> hash_fn;
@@ -195,6 +195,7 @@ uint32_t is_dup_call_kmem_cache_alloc(void)
 #endif
 	return 0;
 }
+#endif
 
 ////////////////////////////////
 void insert_obj(unsigned int pc, unsigned int addr, int size, char *name)
@@ -268,7 +269,7 @@ void delete_all_obj(unsigned int pc)
 }
 ////////////////////////////////
 
-//static map<unsigned int, string> g_trace_kmem;
+#if 0
 void insert_kmem_obj(unsigned int pc, char *name)
 {
 	if(g_trace_kmem.count(pc) == 0) {
@@ -316,7 +317,9 @@ int is_retaddr(unsigned int pc)
 		return 0;
 	}
 }
+#endif
 
+#if 0
 void dump_rets1(FILE *file, unsigned int pc)
 {
 //#ifdef DEBUG
@@ -375,6 +378,7 @@ void load_syscalls(void)
 		//cout<<num<<" "<<name<<endl;
 	}
 }
+#endif
 
 const char *get_syscallName(int num)
 {
@@ -403,7 +407,7 @@ static FILE *output_file2;
 static FILE *output_file3;
 static FILE *output_file4;
 
-
+#if 0
 void cur_dump_rets(FILE *file, unsigned int pc)
 {
 //#ifdef DEBUG
@@ -429,6 +433,7 @@ int cur_delete_retaddr(unsigned int pc)
 	}
 	return 0;
 }
+#endif
 
 void cur_dump_callstack(FILE *file, unsigned int pc)
 {
@@ -463,7 +468,7 @@ string get_cur_callstack_str(unsigned int pc)
 #endif
 }
 
-
+#if 0
 void cur_insert_callstack(unsigned int pc)
 {
 	(*p_cur_callstack).push_back(pc);
@@ -729,6 +734,7 @@ int is_cur_retaddr(unsigned int pc)
 		return 0;
 	}
 }
+#endif
 
 ///////////////////output info////////////////////////////////////
 struct DataIntem
@@ -758,7 +764,10 @@ map<size_t, int> vmalloc_database;
 
 static unordered_set<unsigned int> g_dest;
 static unordered_map<unsigned int, unordered_set<string> > g_point_to;
+static unordered_map<size_t, unordered_set<string> > g_traverse;
 
+
+#if 0
 void save_vmalloc(size_t type)
 {
 	if(vmalloc_database.count(type) == 0) {
@@ -766,6 +775,7 @@ void save_vmalloc(size_t type)
 		vmalloc_database[type] = 1;
 	}
 }
+#endif
 
 void update_traced_size(size_t obj, int size)
 {
@@ -791,6 +801,7 @@ void set_createSys(int sysnum, size_t obj, struct DataIntem data)
 	}
 }
 
+#if 0
 void set_deleteSys(int sysnum, NodeType *tmp)
 {
 	if(in_syscall_context()) {
@@ -812,6 +823,7 @@ void dump_database(void)
 	}
 	fclose(file);
 }
+#endif
 
 void open_database(void)
 {
@@ -919,6 +931,24 @@ void dump_point_to(char *fname)
 	fclose(file);
 }
 
+void dump_traverse(char *fname)
+{
+	FILE *file = fopen(fname, "w");
+	if(!file) {
+		fprintf(stderr, "error in open %s\n", fname);
+		exit(0);
+	}
+
+	for(unordered_map<size_t, unordered_set<string> >::iterator it = g_traverse.begin();
+			it != g_traverse.end();it++) {
+		for(unordered_set<string>::iterator it2 = it->second.begin();
+				it2 != it->second.end(); it2++) {
+			fprintf(file, "%s\n", (*it2).c_str());
+		}
+	}
+	fclose(file);
+}
+
 void set_dump(void)
 {
 	dump_rewards_types("rewards_types");
@@ -926,6 +956,7 @@ void set_dump(void)
 	dump_type_rw("/home/junyuan/Desktop/dump_func1.s");
 	dump_called_func("/home/junyuan/Desktop/dump_called_func.s");
 	dump_point_to("/home/junyuan/Desktop/dump_point_to.s");
+	dump_traverse("/home/junyuan/Desktop/dump_traverse.s");
 }
 
 //begin (for code diff)
@@ -975,6 +1006,7 @@ map<unsigned int, struct Func*> g_func_interface;
 unordered_set<string> type_64;
 void load_function_interface(void)
 {
+#ifdef SEM_TYPES
 	char line[500], fname[50], tmp[50];
 	char *pline;
 	int addr;
@@ -1021,6 +1053,7 @@ void load_function_interface(void)
 		g_func_interface[addr] = func;
 	}
 	fclose(file);
+#endif
 }
 
 int get_parameter(unsigned int *paras, struct Func* func)
@@ -1228,6 +1261,7 @@ string get_callstack_ebp(uint32_t pc)
 	}
 
 	str = int_to_string(pc);
+	//int count = 0;
 	while(1) {
 		if(ebp < kernel_esp || ebp+4 >= esp_max) {
 			break;
@@ -1243,7 +1277,15 @@ string get_callstack_ebp(uint32_t pc)
 				|| COMMON_INTERRUPT
 				|| COMMON_EXCEPTION) {
 			break;
-		} 	
+		}
+#if 0
+		count++;
+		if(count == 100) {
+			cout<<
+			cout<<str<<endl;
+			exit(0);
+		}
+#endif
 	}
 //	cout<<str<<endl;
 	if(int_num != -1) {
@@ -1354,6 +1396,15 @@ void add_pointTo(unsigned int pc, size_t src, int off1, size_t dst, int off2)
 	ss <<hex<<pc<<" "<<hex<<src<<":"<<hex<<off1<<"->"<<hex<<dst<<":"<<hex<<off2;
 	string s = ss.str();
 	g_point_to[pc].insert(s);
+}
+
+void add_traverse(unsigned int pc, size_t src, int off1, size_t dst, int off2)
+{
+	stringstream ss;
+	size_t callstack = hash_callstack(pc);
+	ss <<hex<<callstack<<" "<<hex<<src<<":"<<hex<<off1<<"->"<<hex<<dst<<":"<<hex<<off2;
+	string s = ss.str();
+	g_traverse[callstack].insert(s);
 }
 
 

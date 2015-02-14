@@ -373,11 +373,11 @@ void get_kmem_cache_alloc_args(uint32_t *objsize, char *name)
 #endif
 
 #ifdef LINUX_3_0_58
-	assert(0);
 	tmp = PEMU_get_reg(XED_REG_EAX);
-	PEMU_read_mem(tmp + 12, 4, objsize);
-	PEMU_read_mem(tmp + 0x3c, 4, &tmp1);
+	PEMU_read_mem(tmp + 140, 4, objsize);
+	PEMU_read_mem(tmp + 188, 4, &tmp1);
 	PEMU_read_mem(tmp1, 50, name);
+	fprintf("%x %s\n", objsize, name);
 #endif
 
 
@@ -393,6 +393,20 @@ void get_kmem_cache_alloc_args(uint32_t *objsize, char *name)
 #endif
 
 	//printf("kmem_cache_alloc:%s %d\n", name, *objsize);
+}
+
+void get_kmem_cache_alloc_trace_args(uint32_t *objsize, char *name)
+{
+	uint32_t tmp, tmp1;
+
+#ifdef LINUX_3_0_58
+	tmp = PEMU_get_reg(XED_REG_EDX);
+	PEMU_read_mem(tmp + 140, 4, objsize);
+	PEMU_read_mem(tmp + 188, 4, &tmp1);
+	PEMU_read_mem(tmp1, 50, name);
+	fprintf("%x %s\n", objsize, name);
+#endif
+
 }
 
 

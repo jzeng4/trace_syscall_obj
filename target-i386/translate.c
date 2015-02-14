@@ -677,6 +677,12 @@ static inline void gen_op_st_v(int idx, TCGv t0, TCGv a0)
 		gen_helper_store(t0, a0, tcg_const_i32(idx & 3 + 1));
 	}
 #endif
+
+#ifdef RECORD_POINT_TO
+	if(g_disas_pc >= 0xc0000000) {
+		gen_helper_store1(t0, a0, tcg_const_i32(idx & 3 + 1));
+	}
+#endif
 //end
 
     int mem_index = (idx >> 2) - 1;

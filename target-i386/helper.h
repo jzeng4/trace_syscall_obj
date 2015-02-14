@@ -204,6 +204,7 @@ DEF_HELPER_2(load, void, tl, int)
 DEF_HELPER_3(store, void, tl, tl, int)
 DEF_HELPER_1(call_handler, void, tl)
 DEF_HELPER_2(load1, void, tl, int)
+DEF_HELPER_3(store1, void, tl, tl, int)
 DEF_HELPER_1(call_handler1, void, tl)
 //end
 

@@ -4,9 +4,9 @@
 #define PEMU_DEBUG
 #define TIMMER
 
-//#define LINUX_2_6_32_8_NO_TRACE
-#define LINUX_3_2_58_NO_TRACE
-
+#define LINUX_2_6_32_8_NO_TRACE
+//#define LINUX_3_2_58_NO_TRACE
+//#define LINUX_3_0_58
 
 
 
@@ -19,9 +19,16 @@
 #define KFREE	0xc10ac856	/*kfree*/
 //#define SCHED_ADDR 0xc12683ba  /*address of schedule function*/
 //#define ESP_SWITCH_PONIT	0xc1268a60	/*esp switching point*/
+
+#define KMEM_CACHE_ALLOC_TRACE 0x0        /*start address for kmem_cache_alloc_trace*/
+#define __KMALLOC 0xc10ad425 /*start address for __kmalloc*/
+#define __KMALLOC_TRACK_CALLER 0xc10ad341 /*start address for __kmalloc_track_caller*/
+
+#define __VMALLOC_NODE_FLAGS	0xc10a25de	/*__vmalloc_node*/
+#define VFREE					0xc10a1e5e	/*vfree*/
+
 #define STACK_SIZE	0x2000	/*kernel stack size*/
 #define KERNEL_ADDR_MIN		0xc0000000	/*min address of kernel space*/
-#define KMEM_CACHE_ALLOC_TRACE 0x0
 #define KERNEL_ESP	0xc1c07f80-0x217c 	/*the address of esp field of TSS*/
 //#define ____CACHE_ALLOC_START 0x0 /*start address for ____cache_alloc*/
 //#define ____CACHE_ALLOC_END 0x0 /*start address for ____cache_alloc*/
@@ -36,16 +43,35 @@
 #define COMMON_EXCEPTION ret_addr == 0xc1269ecb
 #define HARD_CODE_SCHED1 pc >= 0xc1268a66 && pc <= 0xc1268a88
 #define HARD_CODE_SCHED2 ret_addr >= 0xc1268a66 && ret_addr <= 0xc1268a88
-
-//#define GLOBAL_MIN 0xc13d5000
-//#define GLOBAL_MAX 0xc13d5000+0x40f00
-
-//#define RO_MIN 0xc12cb000
-//#define RO_MAX 0xc12cb000+0xd9336
-
 #endif
 
+#ifdef LINUX_3_0_58
+#define KMEM_CACHE_CREATE 0xc10bf8c8 /*address of kmem_cache_create*/
+#define KMEM_CACHE_ALLOC 0xc10bec0c /*address of kmem_cache_alloc*/
+#define KMEM_CACHE_FREE	0xc10be6ca  /*address of kmem_cache_free*/
+#define KFREE	0xc10bf313	/*kfree*/
 
+#define KMEM_CACHE_ALLOC_TRACE 0xc10bf0f8        /*start address for kmem_cache_alloc_trace*/
+#define __KMALLOC 0xc10bf177 /*start address for __kmalloc*/
+#define __KMALLOC_TRACK_CALLER 0xc10bfc4e /*start address for __kmalloc_track_caller*/
+
+#define __VMALLOC_NODE_FLAGS	0xc10b4e80	/*__vmalloc_node_flags*/
+#define VFREE					0xc10b4c6b	/*vfree*/
+
+#define STACK_SIZE	0x2000	/*kernel stack size*/
+#define KERNEL_ADDR_MIN		0xc0000000	/*min address of kernel space*/
+#define KERNEL_ESP	0xdfbf2840-0x217c 	/*the address of esp field of TSS*/
+
+#define FUNCTION_INTERFACE "objs-3.0.52/signature_3.0.52.s"
+#define TYPE_64 "objs-3.0.52/type64_3.0.52.s"
+
+#define TIME_INTERRUPT ret_addr == 0xc12c0199
+#define COMMON_INTERRUPT ret_addr == 0xc12c4670
+#define COMMON_EXCEPTION ret_addr == 0xc12c03ff
+#define HARD_CODE_SCHED1 pc >= 0xc12be3e7 && pc <= 0xc12be409
+#define HARD_CODE_SCHED2 ret_addr >= 0xc12be3e7 && ret_addr <= 0xc12be409
+
+#endif
 
 #ifdef LINUX_3_2_58_NO_TRACE
 #define KMEM_CACHE_CREATE 0xc10c8496 /*address of kmem_cache_create*/
@@ -64,35 +90,6 @@
 #define KERNEL_ADDR_MIN		0xc0000000	/*min address of kernel space*/
 #define KERNEL_ESP	0xdfbf2800-0x217c 	/*the address of esp field of TSS*/
 
-#define FUNCTION_INTERFACE "objs-3.2.58/signature_3.2.58.s"
-#define TYPE_64 "objs-3.2.58/type64_3.2.58.s"
-
-#define TIME_INTERRUPT ret_addr == 0xc12d7c59
-#define COMMON_INTERRUPT ret_addr == 0xc12dc170
-#define COMMON_EXCEPTION ret_addr == 0xc12d7e87
-#define HARD_CODE_SCHED1 pc >= 0xc12d5ed6 && pc <= 0xc12d5ef8
-#define HARD_CODE_SCHED2 ret_addr >= 0xc12d5ed6 && ret_addr <= 0xc12d5ef8
-
-#endif
-
-
-
-#ifdef LINUX_3_0_58
-#define KMEM_CACHE_CREATE 0xc10ba70c /*address of kmem_cache_create*/
-#define KMEM_CACHE_ALLOC 0xc10c78e5 /*address of kmem_cache_alloc*/
-#define KMEM_CACHE_FREE	0xc10c73bf  /*address of kmem_cache_free*/
-//#define SCHED_ADDR 0xc12c17cf  /*address of schedule function*/
-#define STACK_SIZE	0x2000	/*kernel stack size*/
-//#define ESP_SWITCH_PONIT	0xc12c1cb3	/*esp switching point*/
-#define KERNEL_ADDR_MIN		0xc0000000	/*min address of kernel space*/
-#define KFREE	0xc10c7e52	/*kfree*/
-#define KERNEL_ESP	0xdfbf2800-0x217c 	/*the address of esp field of TSS*/
-//#define ____CACHE_ALLOC_START 0xc10c798b /*start address for ____cache_alloc*/
-//#define ____CACHE_ALLOC_END 0xc10c7d9f /*start address for ____cache_alloc*/
-#define TRACE_KMALLOC 0x0 /*start address for trace_kmalloc*/
-#define __KMALLOC 0x0 /*start address for __kmalloc*/
-#define __KMALLOC_TRACK_CALLER 0xc10c87f6 /*start address for __kmalloc_track_caller*/
-#define KMEM_CACHE_ALLOC_TRACE 0x0
 #define FUNCTION_INTERFACE "objs-3.2.58/signature_3.2.58.s"
 #define TYPE_64 "objs-3.2.58/type64_3.2.58.s"
 
@@ -136,14 +133,15 @@
 
 //for access
 #define RECORD_MEM_ACCESS
-//	#define RECORD_INSTANCE_ACCESS
+	#define RECORD_INSTANCE_ACCESS
 //	#define RECORD_TYPE_ACCESS
 
 //for rewards
 //#define SEM_TYPES
 
 //for traverse function
-//#define RECORD_TRAVERSE
-//#define RECORD_CALL_FUNC
+#define RECORD_POINT_TO
+#define RECORD_TRAVERSE
+#define RECORD_CALL_FUNC
 //#define RECORD_GLOBAL
 #endif

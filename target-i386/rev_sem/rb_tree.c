@@ -386,7 +386,7 @@ void ds_code_all_delete_rb(UInt start_addr)
 	NodeType *p;
 
 	if((p = ds_code_rbtFind2(start_addr)) != NULL) {
-		set_deleteSys(s_sysnum, p);
+		//set_deleteSys(s_sysnum, p);
 #ifdef DEBUG
 		fprintf(stdout, "delete: %x %s\n", p->key, p->obj_name);
 #endif

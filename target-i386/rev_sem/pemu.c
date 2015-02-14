@@ -54,7 +54,7 @@ int PEMU_init(void *env)
 	//init_pin_regmapping(env);
 	//taintInit();
 	init_inst();
-	load_syscalls();
+	//load_syscalls();
 	//load_modules();
 	open_database();
 	load_function_interface();

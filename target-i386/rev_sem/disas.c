@@ -324,7 +324,25 @@ void helper_load1(target_ulong src, int size)
 		PEMU_read_mem(src, 4, &dst);
 		if((s = ds_code_rbtFind2(src))
 				&& (d = ds_code_rbtFind2(dst))) {
-			add_pointTo(g_pc, s->type, src-s->key, d->type, dst-d->key);
+			add_traverse(g_pc, s->type, src-s->key, d->type, dst-d->key);
+		}
+	}
+}
+
+void helper_store1(target_ulong src, target_ulong addr, int size)
+{
+	{
+		NodeType *s, *d;
+
+		if(src < 0xc0000000 || size != 4) {
+			return;
+		}
+
+		target_ulong dst;
+		PEMU_read_mem(addr, 4, &dst);
+		if((s = ds_code_rbtFind2(src))
+				&& (d = ds_code_rbtFind2(dst))) {
+			add_pointTo(g_pc, d->type, dst-d->key, s->type, src-s->key);
 		}
 	}
 }
